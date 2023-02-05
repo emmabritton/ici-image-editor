@@ -4,9 +4,9 @@ Used to edit ICI images (`IndexedImage`) from [buffer-graphics-lib](https://gith
 
 ## Screenshots
 
-![Editor](https://github.com/emmabritton/ici-image-editor/raw/main/.github/editor.png)
-![Edit Palette](https://github.com/emmabritton/ici-image-editor/raw/main/.github/palette.png)
-![Load file](https://github.com/emmabritton/ici-image-editor/raw/main/.github/load.png)
+![Editor](https://github.com/emmabritton/ici-image-editor/raw/main/.github/screenshots/editor.png)
+![Edit Palette](https://github.com/emmabritton/ici-image-editor/raw/main/.github/screenshots/palette.png)
+![Load file](https://github.com/emmabritton/ici-image-editor/raw/main/.github/screenshots/load.png)
 
 ## TODO
 - Saving/loading palettes
