@@ -3,7 +3,7 @@ use std::mem::swap;
 use std::path::PathBuf;
 use log::error;
 use crate::SceneUpdateResult::*;
-use crate::{palettes, Scene, SceneName, SceneResult, SUR, WIDTH};
+use crate::{HEIGHT, palettes, Scene, SceneName, SceneResult, SUR, WIDTH};
 use pixels_graphics_lib::prelude::indexed::IndexedImage;
 use pixels_graphics_lib::prelude::*;
 use pixels_graphics_lib::ui::styles::{AlertStyle, ButtonStyle};
@@ -15,13 +15,13 @@ use crate::ui::prelude::AlertResult::Positive;
 
 const CANVAS_WIDTH: usize = 200;
 const CANVAS_HEIGHT: usize = 200;
-const PAL_SIZE: usize = 10;
-const PAL_SPACE: usize = 3;
+const PAL_SIZE: usize = 8;
+const PAL_SPACE: usize = 4;
 const PAL_SPACED: usize = PAL_SIZE + PAL_SPACE;
 const PAL_WIDTH: usize = PAL_SPACED * PALETTE_COLS;
 const PAL_HEIGHT: usize =PAL_SPACED * PALETTE_ROWS;
 const PALETTE_ROWS: usize = 6;
-const PALETTE_COLS: usize = 5;
+const PALETTE_COLS: usize = 6;
 const PALETTE_POS: Coord = Coord::new(4, 130);
 const FILENAME_POS: Coord = Coord::new(2,2);
 const CANVAS_POS: Coord = Coord::new(76, 36);
@@ -33,7 +33,7 @@ const PENCIL_POS: Coord = Coord::new(8, 42);
 const LINE_POS: Coord = Coord::new(8, 64);
 const RECT_POS: Coord = Coord::new(8, 86);
 const ERASE_POS: Coord = Coord::new(8, 108);
-const PAL_EDIT_POS: Coord = Coord::new(8, PALETTE_POS.y + PAL_HEIGHT as isize + 8);
+const PAL_EDIT_POS: Coord = Coord::new(8, (HEIGHT - 20) as isize);
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 enum AlertAction {
@@ -113,7 +113,7 @@ impl Editor {
         let image_rect = Rect::new_with_size(CANVAS_POS + ((CANVAS_WIDTH - image_width) / 2, (CANVAS_HEIGHT - image_height)/2), image_width, image_height);
         let canvas_color = BLACK;
         let grid_color = DARK_GRAY;
-        let pal_edit = Button::new(PAL_EDIT_POS, "Edit", Some(56), &button_style);
+        let pal_edit = Button::new(PAL_EDIT_POS, "Palette", Some(56), &button_style);
         let alert = Alert::new_question(&["Are you sure?","All changes will be lost"], "Cancel", "Yes", width,height,&alert_style);
         let mut transparent_placeholder = ShapeCollection::new();
         let trans_size = tile_size / 2;
