@@ -25,6 +25,7 @@ jobs:
         with:
           profile: minimal
           override: true
+          toolchain: stable
           components: rustfmt
 
       - name: Run cargo fmt --all -- --check
@@ -42,6 +43,7 @@ jobs:
         with:
           profile: minimal
           override: true
+          toolchain: stable
           components: clippy
 
       - name: Install linux libs
@@ -61,6 +63,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
+          toolchain: stable
           override: true
 
       - name: Install linux libs
@@ -100,7 +103,7 @@ jobs:
         with:
           use-cross: true
           command: build
-          toolchain: nightly
+          toolchain: stable
           args: --release --target=${{ matrix.target }}
 
       - name: Prepare build artifacts [Windows]
