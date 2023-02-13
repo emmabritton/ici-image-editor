@@ -1,4 +1,5 @@
 use crate::scenes::dialog_background;
+use crate::scenes::editor::EditorDetails;
 use crate::ui::prelude::*;
 use crate::ui::text_field::TextFilter::Numbers;
 use crate::SceneName::Editor;
@@ -12,7 +13,6 @@ use pixels_graphics_lib::prelude::WrappingStrategy::SpaceBeforeCol;
 use pixels_graphics_lib::prelude::*;
 use std::io::{BufReader, Cursor};
 use std::str::FromStr;
-use crate::scenes::editor::EditorDetails;
 
 #[derive(Debug)]
 pub struct NewImageDialog {
@@ -30,27 +30,53 @@ pub struct NewImageDialog {
     quick_8: Button,
     quick_12: Button,
     quick_16: Button,
-    error_pos: Coord
+    error_pos: Coord,
 }
 
 impl NewImageDialog {
-    pub fn new(width: usize,height: usize,style: &DialogStyle) -> Box<Self> {
+    pub fn new(width: usize, height: usize, style: &DialogStyle) -> Box<Self> {
         let background = dialog_background(width, height, style);
         let width_label = Text::new(
             "Width (1..=20)",
             TextPos::px(style.bounds.top_left() + (8, 8)),
             (WHITE, Normal),
         );
-        let width_field = TextField::new(style.bounds.top_left() + (8, 18), 6, Normal, None,"", &[Numbers], &style.text_field);
+        let width_field = TextField::new(
+            style.bounds.top_left() + (8, 18),
+            6,
+            Normal,
+            None,
+            "",
+            &[Numbers],
+            &style.text_field,
+        );
         let height_label = Text::new(
             "Height (1..=20)",
             TextPos::px(style.bounds.top_left() + (8, 40)),
             (WHITE, Normal),
         );
-        let height_field = TextField::new(style.bounds.top_left() + (8, 50), 6, Normal,None, "", &[Numbers], &style.text_field);
-        let submit_button = Button::new(style.bounds.top_left() + (138, 144), "Create", None, &style.button);
-        let cancel_button = Button::new(style.bounds.top_left() + (8, 144), "Cancel", None, &style.button);
-        let error_pos = style.bounds.top_left()+(16,  80);
+        let height_field = TextField::new(
+            style.bounds.top_left() + (8, 50),
+            6,
+            Normal,
+            None,
+            "",
+            &[Numbers],
+            &style.text_field,
+        );
+        let submit_button = Button::new(
+            style.bounds.top_left() + (138, 144),
+            "Create",
+            None,
+            &style.button,
+        );
+        let cancel_button = Button::new(
+            style.bounds.top_left() + (8, 144),
+            "Cancel",
+            None,
+            &style.button,
+        );
+        let error_pos = style.bounds.top_left() + (16, 80);
         let error_outline = Polyline::rounded_rect(
             error_pos.x,
             error_pos.y,
@@ -64,9 +90,24 @@ impl NewImageDialog {
         let cursor = Cursor::new(warning_icon_data);
         let reader = BufReader::new(cursor);
         let warning_icon = load_image(reader, Png).unwrap();
-        let quick_8 = Button::new(style.bounds.top_left() + (138, 8), "8x8", Some(50), &style.button);
-        let quick_12 = Button::new(style.bounds.top_left() + (138, 30), "12x12", Some(50), &style.button);
-        let quick_16 = Button::new(style.bounds.top_left() + (138, 52), "16x16", Some(50), &style.button);
+        let quick_8 = Button::new(
+            style.bounds.top_left() + (138, 8),
+            "8x8",
+            Some(50),
+            &style.button,
+        );
+        let quick_12 = Button::new(
+            style.bounds.top_left() + (138, 30),
+            "12x12",
+            Some(50),
+            &style.button,
+        );
+        let quick_16 = Button::new(
+            style.bounds.top_left() + (138, 52),
+            "16x16",
+            Some(50),
+            &style.button,
+        );
         Box::new(Self {
             result: Nothing,
             width_field,
@@ -82,11 +123,12 @@ impl NewImageDialog {
             quick_8,
             quick_12,
             quick_16,
-            error_pos
+            error_pos,
         })
     }
 }
 
+#[allow(clippy::unnecessary_unwrap)] //for readability, it is necessary
 impl NewImageDialog {
     fn verify(&self) -> Result<(usize, usize), String> {
         if self.width_field.content().is_empty() {
@@ -109,10 +151,7 @@ impl NewImageDialog {
     }
 
     fn set_success(&mut self, width: usize, height: usize) {
-        self.result = Push(
-            true,
-            Editor(EditorDetails::New(width, height)),
-        );
+        self.result = Push(true, Editor(EditorDetails::New(width, height)));
     }
 }
 

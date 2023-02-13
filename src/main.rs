@@ -1,20 +1,20 @@
 mod palettes;
 mod scenes;
 
-use crate::palettes::Palette;
 use crate::scenes::editor::{Editor, EditorDetails};
+use crate::scenes::menu::Menu;
 use crate::scenes::new_image_dialog::NewImageDialog;
+use crate::scenes::palette_dialog::PaletteDialog;
 use color_eyre::Result;
 use log::LevelFilter;
 use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
 use pixels_graphics_lib::prefs::WindowPreferences;
-use pixels_graphics_lib::prelude::*;
-use std::fmt::Debug;
 use pixels_graphics_lib::prelude::load_file_dialog::LoadFileDialog;
 use pixels_graphics_lib::prelude::save_file_dialog::SaveFileDialog;
-use crate::scenes::menu::Menu;
-use crate::scenes::palette_dialog::PaletteDialog;
+use pixels_graphics_lib::prelude::*;
+use std::fmt::Debug;
 
+#[allow(clippy::upper_case_acronyms)]
 type SUR = SceneUpdateResult<SceneResult, SceneName>;
 
 const WIDTH: usize = 280;
@@ -30,19 +30,48 @@ fn main() -> Result<()> {
         .init();
     color_eyre::install()?;
 
-    let switcher: SceneSwitcher<SceneResult, SceneName> = |style, list, name|{
+    let switcher: SceneSwitcher<SceneResult, SceneName> = |style, list, name| {
         let style = style;
         match name {
-        SceneName::Editor(details) => list.push(Editor::new(details, WIDTH, HEIGHT, &style.alert, &style.button)),
-        SceneName::NewImage => list.push(NewImageDialog::new(WIDTH, HEIGHT, &style.dialog)),
-        SceneName::SaveFile(ext, filepath) => list.push(SaveFileDialog::new(filepath, Some(&ext), WIDTH, HEIGHT, &style.dialog)),
-        SceneName::LoadFile(ext) => list.push(LoadFileDialog::new(Some(&ext), WIDTH, HEIGHT, &style.dialog)),
-        SceneName::Palette(colors) => list.push(PaletteDialog::new(colors,WIDTH, HEIGHT, &style.dialog)),
-    }};
+            SceneName::Editor(details) => list.push(Editor::new(
+                details,
+                WIDTH,
+                HEIGHT,
+                &style.alert,
+                &style.button,
+            )),
+            SceneName::NewImage => list.push(NewImageDialog::new(WIDTH, HEIGHT, &style.dialog)),
+            SceneName::SaveFile(ext, filepath) => list.push(SaveFileDialog::new(
+                filepath,
+                Some(&ext),
+                WIDTH,
+                HEIGHT,
+                &style.dialog,
+            )),
+            SceneName::LoadFile(ext) => list.push(LoadFileDialog::new(
+                Some(&ext),
+                WIDTH,
+                HEIGHT,
+                &style.dialog,
+            )),
+            SceneName::Palette(colors) => {
+                list.push(PaletteDialog::new(colors, WIDTH, HEIGHT, &style.dialog))
+            }
+        }
+    };
 
     let mut options = Options::default();
-    options.style.dialog.bounds = Rect::new_with_size((42,36), MIN_FILE_DIALOG_SIZE.0, MIN_FILE_DIALOG_SIZE.1);
-    run_scenes(WIDTH, HEIGHT, "Image Editor", Some(WindowPreferences::new("app", "emmabritton", "image_editor").unwrap()), switcher, Menu::new(&options.style.button), options)?;
+    options.style.dialog.bounds =
+        Rect::new_with_size((42, 36), MIN_FILE_DIALOG_SIZE.0, MIN_FILE_DIALOG_SIZE.1);
+    run_scenes(
+        WIDTH,
+        HEIGHT,
+        "Image Editor",
+        Some(WindowPreferences::new("app", "emmabritton", "image_editor").unwrap()),
+        switcher,
+        Menu::new(&options.style.button),
+        options,
+    )?;
     Ok(())
 }
 

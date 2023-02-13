@@ -1,10 +1,9 @@
+use crate::palettes::PaletteError::*;
+use crate::palettes::ParseIssue::*;
+use pixels_graphics_lib::prelude::*;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
-use pixels_graphics_lib::prelude::*;
-use serde::{Deserialize, Serialize, Serializer};
-use crate::palettes::PaletteError::*;
-use crate::palettes::ParseIssue::*;
 
 const PAL_DOS: &str = include_str!("../assets/palettes/dos.pal");
 const PAL_GB: &str = include_str!("../assets/palettes/gb.pal");
@@ -17,7 +16,7 @@ pub enum PaletteError {
     InvalidFileType,
     UnsupportedVersion,
     IncorrectNumberOfColors,
-    ParseError(ParseIssue)
+    ParseError(ParseIssue),
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -41,14 +40,12 @@ impl Display for PaletteError {
                 ColorCount => write!(f, "Error parsing the color count"),
                 ColorSplitting(num) => write!(f, "Error splitting color {num}"),
                 ColorNumbers(num) => write!(f, "Error parsing color {num}"),
-            }
+            },
         }
     }
 }
 
-impl Error for PaletteError {
-
-}
+impl Error for PaletteError {}
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Palette {
@@ -115,7 +112,7 @@ impl Palette {
     }
 
     pub fn from_file_contents(text: &str) -> Result<Palette, PaletteError> {
-        let mut lines = text.lines().into_iter();
+        let mut lines = text.lines();
         if let Some(line) = lines.next() {
             if line != FILE_HEADER {
                 return Err(InvalidFileType);
@@ -133,7 +130,7 @@ impl Palette {
         let count = if let Some(line) = lines.next() {
             match u8::from_str(line) {
                 Ok(num) => num,
-                Err(_) => return Err(ParseError(ColorCount))
+                Err(_) => return Err(ParseError(ColorCount)),
             }
         } else {
             return Err(ParseError(ColorCount));
@@ -143,15 +140,15 @@ impl Palette {
             return Err(IncorrectNumberOfColors);
         }
         let mut output = vec![];
-        for (i,color) in colors.iter().enumerate() {
+        for (i, color) in colors.iter().enumerate() {
             let values: Vec<&str> = color.split_whitespace().collect();
             if values.len() != 3 {
                 return Err(ParseError(ColorSplitting(i)));
             }
-            let r = u8::from_str(values[0]).map_err(|_|ParseError(ColorNumbers(i)))?;
-            let g = u8::from_str(values[1]).map_err(|_|ParseError(ColorNumbers(i)))?;
-            let b = u8::from_str(values[2]).map_err(|_|ParseError(ColorNumbers(i)))?;
-            output.push(Color {r,g,b,a:255})
+            let r = u8::from_str(values[0]).map_err(|_| ParseError(ColorNumbers(i)))?;
+            let g = u8::from_str(values[1]).map_err(|_| ParseError(ColorNumbers(i)))?;
+            let b = u8::from_str(values[2]).map_err(|_| ParseError(ColorNumbers(i)))?;
+            output.push(Color { r, g, b, a: 255 })
         }
         Ok(Palette::new(output))
     }

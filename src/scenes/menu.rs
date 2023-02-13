@@ -1,6 +1,8 @@
+use crate::scenes::editor::EditorDetails;
 use crate::scenes::BACKGROUND;
 use crate::ui::button::Button;
 use crate::ui::Ui;
+use crate::SceneName::Editor;
 use crate::SceneUpdateResult::{Nothing, Push};
 use crate::{Scene, SceneName, SceneResult, SUR};
 use pixels_graphics_lib::buffer_graphics_lib::image::Image;
@@ -10,10 +12,8 @@ use pixels_graphics_lib::buffer_graphics_lib::text::wrapping::WrappingStrategy;
 use pixels_graphics_lib::buffer_graphics_lib::text::TextSize::Large;
 use pixels_graphics_lib::buffer_graphics_lib::Graphics;
 use pixels_graphics_lib::prelude::{Coord, VirtualKeyCode};
-use pixels_graphics_lib::Timing;
 use pixels_graphics_lib::ui::styles::ButtonStyle;
-use crate::SceneName::Editor;
-use crate::scenes::editor::EditorDetails;
+use pixels_graphics_lib::Timing;
 
 const LOGO_POS: Coord = Coord::new(10, 10);
 const NEW_POS: Coord = Coord::new(10, 50);
@@ -48,8 +48,8 @@ impl Menu {
             );
         })
         .unwrap();
-        let new_button = Button::new(NEW_POS, "New image", Some(86), &button_style);
-        let load_button = Button::new(LOAD_POS, "Load image", Some(86), &button_style);
+        let new_button = Button::new(NEW_POS, "New image", Some(86), button_style);
+        let load_button = Button::new(LOAD_POS, "Load image", Some(86), button_style);
         Box::new(Self {
             result: Nothing,
             logo,
@@ -93,7 +93,6 @@ impl Scene<SceneResult, SceneName> for Menu {
         } else {
             self.result = Nothing;
         }
-
     }
 
     fn is_dialog(&self) -> bool {
