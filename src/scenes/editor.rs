@@ -206,12 +206,45 @@ impl Scene<SceneResult, SceneName> for Editor {
             graphics.draw_rect(Rect::new_with_size(xy * self.tile_size + self.image_rect.top_left(), self.tile_size, self.tile_size), stroke(self.image.colors()[self.selected_color_idx]));
         }
 
+        if self.image_rect.contains(mouse_xy) {
+            let xy = (mouse_xy - self.image_rect.top_left()) / self.tile_size;
+            let mut color =self.image.colors()[self.selected_color_idx];
+            color.a = 155;
+            match self.drawing_mode {
+                DrawingMode::Pencil => graphics.draw_rect(Rect::new_with_size(xy * self.tile_size + self.image_rect.top_left(), self.tile_size, self.tile_size), stroke(color)),
+                DrawingMode::Line => match self.shape_start {
+                    None => graphics.draw_rect(Rect::new_with_size(xy * self.tile_size + self.image_rect.top_left(), self.tile_size, self.tile_size), stroke(color)),
+                    Some(start) => {
+
+                    }
+                }
+                DrawingMode::Rect => match self.shape_start {
+                    None => graphics.draw_rect(Rect::new_with_size(xy * self.tile_size + self.image_rect.top_left(), self.tile_size, self.tile_size), stroke(color)),
+                    Some(start) => {
+                        let offset = self.image_rect.top_left();
+                        let width = self.image.width() as isize;
+                        let top_left = (xy.x.min(start.x) as usize,xy.y.min(start.y) as usize);
+                        let bottom_right = (xy.x.max(start.x) as usize,xy.y.max(start.y) as usize);
+                        for x in top_left.0..=bottom_right.0 {
+                            graphics.draw_rect(Rect::new_with_size(offset + (x*self.tile_size,top_left.1*self.tile_size),self.tile_size,self.tile_size),stroke(color));
+                            graphics.draw_rect(Rect::new_with_size(offset + (x*self.tile_size,bottom_right.1*self.tile_size),self.tile_size,self.tile_size),stroke(color));
+                        }
+                        for y in top_left.1..=bottom_right.1 {
+                            graphics.draw_rect(Rect::new_with_size(offset + (top_left.0*self.tile_size,y*self.tile_size),self.tile_size,self.tile_size),stroke(color));
+                            graphics.draw_rect(Rect::new_with_size(offset + (bottom_right.0*self.tile_size,y*self.tile_size),self.tile_size,self.tile_size),stroke(color));
+                        }
+                    }
+                }
+                DrawingMode::Eraser => graphics.draw_rect(Rect::new_with_size(xy * self.tile_size + self.image_rect.top_left(), self.tile_size, self.tile_size), stroke(BLACK))
+            }
+        }
+
         self.save.render(graphics, mouse_xy);
         self.save_as.render(graphics, mouse_xy);
         self.close.render(graphics, mouse_xy);
         self.clear.render(graphics, mouse_xy);
         // self.line.render(graphics, mouse_xy);
-        // self.rect.render(graphics, mouse_xy);
+        self.rect.render(graphics, mouse_xy);
         self.pencil.render(graphics, mouse_xy);
         self.erase.render(graphics, mouse_xy);
         self.pal_edit.render(graphics, mouse_xy);
@@ -241,6 +274,7 @@ impl Scene<SceneResult, SceneName> for Editor {
                             Clear => {
                                 let size = self.image.width() * self.image.height();
                                 swap(self.image.pixels_mut(), &mut vec![indexed::TRANSPARENT; size]);
+                                self.shape_start = None;
                             }
                             Close => {
                                 self.result = Pop(None);
@@ -264,12 +298,12 @@ impl Scene<SceneResult, SceneName> for Editor {
         //     self.erase.set_selected(false);
         //     self.drawing_mode = DrawingMode::Line;
         // }
-        // if self.rect.on_mouse_click(xy) {
-        //     self.pencil.set_selected(false);
-        //     self.line.set_selected(false);
-        //     self.erase.set_selected(false);
-        //     self.drawing_mode = DrawingMode::Rect;
-        // }
+        if self.rect.on_mouse_click(xy) {
+            self.pencil.set_selected(false);
+            self.line.set_selected(false);
+            self.erase.set_selected(false);
+            self.drawing_mode = DrawingMode::Rect;
+        }
         if self.erase.on_mouse_click(xy) {
             self.pencil.set_selected(false);
             self.line.set_selected(false);
@@ -285,10 +319,30 @@ impl Scene<SceneResult, SceneName> for Editor {
                     None => self.shape_start = Some(xy),
                     Some(start) => {
 
-
                     }
                 }
-                DrawingMode::Rect => {}
+                DrawingMode::Rect => match self.shape_start {
+                    None => self.shape_start = Some(xy),
+                    Some(start) => {
+                        let width = self.image.width() as isize;
+                        let color = self.selected_color_idx as u8;
+                        let top_left = (xy.x.min(start.x),xy.y.min(start.y));
+                        let bottom_right = (xy.x.max(start.x),xy.y.max(start.y));
+                        for x in top_left.0..=bottom_right.0 {
+                            let top = top_left.1 * width + x;
+                            let bottom = bottom_right.1 * width + x;
+                            self.image.pixels_mut()[top as usize] = color;
+                            self.image.pixels_mut()[bottom as usize] = color;
+                        }
+                        for y in top_left.1..=bottom_right.1 {
+                            let left = y * width + top_left.0;
+                            let right = y * width + bottom_right.0;
+                            self.image.pixels_mut()[left as usize] = color;
+                            self.image.pixels_mut()[right as usize] = color;
+                        }
+                        self.shape_start = None;
+                    }
+                }
                 DrawingMode::Eraser => self.image.pixels_mut()[i] = indexed::TRANSPARENT
             }
         }
