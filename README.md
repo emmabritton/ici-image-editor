@@ -9,5 +9,6 @@ Used to edit ICI images (`IndexedImage`) from [buffer-graphics-lib](https://gith
 ![Load file](https://github.com/emmabritton/ici-image-editor/raw/main/.github/screenshots/load.png)
 
 ## TODO
-- Saving/loading palettes
 - Undo/redo
+- Draw lines
+- Load palettes from images
