@@ -7,7 +7,7 @@ use crate::{HEIGHT, palettes, Scene, SceneName, SceneResult, SUR, WIDTH};
 use pixels_graphics_lib::prelude::indexed::IndexedImage;
 use pixels_graphics_lib::prelude::*;
 use pixels_graphics_lib::ui::styles::{AlertStyle, ButtonStyle};
-use crate::SceneName::{Palette, SaveImage};
+use crate::SceneName::{Palette, SaveFile};
 use crate::scenes::BACKGROUND;
 use crate::scenes::editor::AlertAction::{Clear, Close};
 use crate::ui::prelude::*;
@@ -302,11 +302,11 @@ impl Scene<SceneResult, SceneName> for Editor {
             if let Some(path) = &self.file_path {
                 self.save_image();
             } else {
-                self.result = Push(false, SaveImage(None))
+                self.result = Push(false, SaveFile(String::from("ici"), None))
             }
         }
         if self.save_as.on_mouse_click(xy) {
-            self.result = Push(false, SaveImage(None))
+            self.result = Push(false, SaveFile(String::from("ici"), None))
         }
         if self.pal_edit.on_mouse_click(xy) {
             self.result = Push(false, Palette(self.image.colors().clone()))

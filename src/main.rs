@@ -35,8 +35,8 @@ fn main() -> Result<()> {
         match name {
         SceneName::Editor(details) => list.push(Editor::new(details, WIDTH, HEIGHT, &style.alert, &style.button)),
         SceneName::NewImage => list.push(NewImageDialog::new(WIDTH, HEIGHT, &style.dialog)),
-        SceneName::SaveImage(filepath) => list.push(SaveFileDialog::new(filepath, Some("ici"), WIDTH, HEIGHT, &style.dialog)),
-        SceneName::LoadImage => list.push(LoadFileDialog::new(Some("ici"), WIDTH, HEIGHT, &style.dialog)),
+        SceneName::SaveFile(ext, filepath) => list.push(SaveFileDialog::new(filepath, Some(&ext), WIDTH, HEIGHT, &style.dialog)),
+        SceneName::LoadFile(ext) => list.push(LoadFileDialog::new(Some(&ext), WIDTH, HEIGHT, &style.dialog)),
         SceneName::Palette(colors) => list.push(PaletteDialog::new(colors,WIDTH, HEIGHT, &style.dialog)),
     }};
 
@@ -50,8 +50,8 @@ fn main() -> Result<()> {
 enum SceneName {
     Editor(EditorDetails),
     NewImage,
-    SaveImage(Option<String>),
-    LoadImage,
+    SaveFile(String, Option<String>),
+    LoadFile(String),
     Palette(Vec<Color>),
 }
 

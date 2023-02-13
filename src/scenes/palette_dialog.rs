@@ -1,10 +1,13 @@
+use std::fs;
 use std::str::FromStr;
 use crate::SceneUpdateResult::{Nothing, Pop};
 use crate::{Scene, SceneName, SceneResult, SUR};
 use pixels_graphics_lib::prelude::*;
+use pixels_graphics_lib::scenes::SceneUpdateResult::Push;
+use crate::palettes::Palette;
 use crate::scenes::dialog_background;
 use crate::ui::prelude::*;
-use crate::Palette;
+use crate::SceneName::{LoadFile, SaveFile};
 use crate::ui::prelude::TextFilter::Numbers;
 
 const PAL_POS: Coord = Coord::new(5, 48);
@@ -23,11 +26,13 @@ pub struct PaletteDialog {
     vic: Button,
     zx: Button,
     def: Button,
-    save: Button,
+    ok: Button,
     cancel: Button,
     replace: Button,
     delete: Button,
     add: Button,
+    save: Button,
+    load: Button,
     background: ShapeCollection,
     selected_color: usize,
     colors: Vec<Color>,
@@ -35,7 +40,8 @@ pub struct PaletteDialog {
     green: TextField,
     blue: TextField,
     current_color: Color,
-    dialog_pos: Coord
+    dialog_pos: Coord,
+    file_path: Option<String>
 }
 
 impl PaletteDialog {
@@ -59,13 +65,16 @@ impl PaletteDialog {
         let add = Button::new((button_start_pos.x + button_offset_x *2, dialog_pos.y+pal_but_y),"Add",Some(60), &style.button);
 
         let cancel = Button::new(dialog_pos + (4,148),"Cancel",Some(60), &style.button);
-        let save = Button::new(dialog_pos + (132,148),"OK",Some(60), &style.button);
+        let ok = Button::new(dialog_pos + (132, 148), "OK", Some(60), &style.button);
 
         let red = TextField::new(dialog_pos +(70,94), 3, Normal, None,"", &[Numbers], &style.text_field);
         let green = TextField::new(dialog_pos +(70,106), 3, Normal, None,"", &[Numbers], &style.text_field);
         let blue = TextField::new(dialog_pos +(70,118), 3, Normal, None,"", &[Numbers], &style.text_field);
 
-        let mut dialog = Self { dialog_pos,result: Nothing, dos, gb, pico, vic, zx, def, save, cancel, replace: edit, delete, add, background, selected_color: 0, colors: colors.into_iter().take(42).collect(), red, green, blue, current_color: WHITE };
+        let save = Button::new(dialog_pos + (132, 98), "Save", Some(60), &style.button);
+        let load = Button::new(dialog_pos + (132, 118), "Load", Some(60), &style.button);
+
+        let mut dialog = Self { file_path:None, save, load, dialog_pos,result: Nothing, dos, gb, pico, vic, zx, def, ok, cancel, replace: edit, delete, add, background, selected_color: 0, colors: colors.into_iter().take(42).collect(), red, green, blue, current_color: WHITE };
         dialog.update_selected_color_display();
         Box::new(dialog)
     }
@@ -86,6 +95,19 @@ impl PaletteDialog {
         self.green.set_content(&self.current_color.g.to_string());
         self.blue.set_content(&self.current_color.b.to_string());
     }
+
+    fn save_palette(&mut self, path: String) {
+        let output = Palette { colors: self.colors.clone() }.to_file_contents();
+        fs::write(&path, output).expect("Writing palette to disk");
+        self.file_path = Some(path);
+    }
+
+    fn load_palette(&mut self, path: String) {
+        let input = fs::read_to_string(&path).expect("Reading palette from disk");
+        let palette =Palette::from_file_contents(&input).expect("Decoding palette");
+        self.colors = palette.colors;
+        self.file_path = Some(path);
+    }
 }
 
 impl Scene<SceneResult, SceneName> for PaletteDialog {
@@ -97,7 +119,7 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
         self.vic.render(graphics,mouse_xy);
         self.zx.render(graphics,mouse_xy);
         self.def.render(graphics,mouse_xy);
-        self.save.render(graphics,mouse_xy);
+        self.ok.render(graphics, mouse_xy);
         self.cancel.render(graphics,mouse_xy);
         self.replace.render(graphics, mouse_xy);
         self.delete.render(graphics,mouse_xy);
@@ -105,6 +127,8 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
         self.red.render(graphics,mouse_xy);
         self.green.render(graphics,mouse_xy);
         self.blue.render(graphics,mouse_xy);
+        self.save.render(graphics,mouse_xy);
+        self.load.render(graphics,mouse_xy);
 
         graphics.draw_rect(Rect::new_with_size(self.dialog_pos+(14,96),32,32), fill(self.current_color));
 
@@ -141,7 +165,7 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
         if self.cancel.on_mouse_click(xy) {
             self.result = Pop(None);
         }
-        if self.save.on_mouse_click(xy) {
+        if self.ok.on_mouse_click(xy) {
             self.result = Pop(Some(SceneResult::Palette(self.colors.clone())));
         }
         if self.gb.on_mouse_click(xy) {
@@ -192,6 +216,12 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
                 self.update_selected_color_display();
             }
         }
+        if self.save.on_mouse_click(xy) {
+            self.result = Push(false, SaveFile(String::from("pal"), self.file_path.clone()));
+        }
+        if self.load.on_mouse_click(xy) {
+            self.result = Push(false, LoadFile(String::from("pal")));
+        }
     }
 
     fn update(
@@ -206,7 +236,14 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
         self.result.clone()
     }
 
-    fn resuming(&mut self, _: Option<SceneResult>) {
+    fn resuming(&mut self, result: Option<SceneResult>) {
+        if let Some(result) = result {
+            match result {
+                SceneResult::LoadFilePath(path) => self.load_palette(path),
+                SceneResult::SaveFilePath(path) => self.save_palette(path),
+                _ => {}
+            }
+        }
         self.result = Nothing;
     }
 

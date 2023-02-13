@@ -2,6 +2,7 @@ use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use pixels_graphics_lib::prelude::*;
+use serde::{Deserialize, Serialize, Serializer};
 use crate::palettes::PaletteError::*;
 use crate::palettes::ParseIssue::*;
 
@@ -60,23 +61,23 @@ impl Palette {
     }
 
     pub fn builtin_dos() -> Palette {
-        Palette::from_string(PAL_DOS).unwrap()
+        Palette::from_file_contents(PAL_DOS).unwrap()
     }
 
     pub fn builtin_gb() -> Palette {
-        Palette::from_string(PAL_GB).unwrap()
+        Palette::from_file_contents(PAL_GB).unwrap()
     }
 
     pub fn builtin_pico() -> Palette {
-        Palette::from_string(PAL_PICO).unwrap()
+        Palette::from_file_contents(PAL_PICO).unwrap()
     }
 
     pub fn builtin_zx() -> Palette {
-        Palette::from_string(PAL_ZX).unwrap()
+        Palette::from_file_contents(PAL_ZX).unwrap()
     }
 
     pub fn builtin_vic() -> Palette {
-        Palette::from_string(PAL_VIC20).unwrap()
+        Palette::from_file_contents(PAL_VIC20).unwrap()
     }
 }
 
@@ -89,18 +90,41 @@ impl Default for Palette {
     }
 }
 
+const FILE_HEADER: &str = "JASC-PAL";
+const FILE_VER: &str = "0100";
+
 impl Palette {
-    pub fn from_string(text: &str) -> Result<Palette, PaletteError> {
+    pub fn to_file_contents(&self) -> String {
+        let mut output = String::new();
+        output.push_str(FILE_HEADER);
+        output.push('\n');
+        output.push_str(FILE_VER);
+        output.push('\n');
+        output.push_str(&self.colors.len().to_string());
+        output.push('\n');
+        for color in &self.colors {
+            output.push_str(&color.r.to_string());
+            output.push(' ');
+            output.push_str(&color.g.to_string());
+            output.push(' ');
+            output.push_str(&color.b.to_string());
+            output.push('\n');
+        }
+
+        output
+    }
+
+    pub fn from_file_contents(text: &str) -> Result<Palette, PaletteError> {
         let mut lines = text.lines().into_iter();
         if let Some(line) = lines.next() {
-            if line != "JASC-PAL" {
+            if line != FILE_HEADER {
                 return Err(InvalidFileType);
             }
         } else {
             return Err(ParseError(FileDesc));
         }
         if let Some(line) = lines.next() {
-            if line != "0100" {
+            if line != FILE_VER {
                 return Err(UnsupportedVersion);
             }
         } else {

@@ -76,7 +76,7 @@ impl Scene<SceneResult, SceneName> for Menu {
             self.result = Push(false, SceneName::NewImage);
         }
         if self.load_button.on_mouse_click(xy) {
-            self.result = Push(false, SceneName::LoadImage);
+            self.result = Push(false, SceneName::LoadFile(String::from("ici")));
         }
     }
 
