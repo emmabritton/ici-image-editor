@@ -1,7 +1,6 @@
 use crate::scenes::editor::EditorDetails;
 use crate::scenes::BACKGROUND;
 use crate::ui::button::Button;
-use crate::ui::Ui;
 use crate::SceneName::Editor;
 use crate::SceneUpdateResult::{Nothing, Push};
 use crate::{Scene, SceneName, SceneResult, SUR};
@@ -11,7 +10,7 @@ use pixels_graphics_lib::buffer_graphics_lib::text::pos::TextPos;
 use pixels_graphics_lib::buffer_graphics_lib::text::wrapping::WrappingStrategy;
 use pixels_graphics_lib::buffer_graphics_lib::text::TextSize::Large;
 use pixels_graphics_lib::buffer_graphics_lib::Graphics;
-use pixels_graphics_lib::prelude::{Coord, VirtualKeyCode};
+use pixels_graphics_lib::prelude::{Coord, UiElement, VirtualKeyCode};
 use pixels_graphics_lib::ui::styles::ButtonStyle;
 use pixels_graphics_lib::Timing;
 

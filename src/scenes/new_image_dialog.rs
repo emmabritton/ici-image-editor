@@ -5,13 +5,9 @@ use crate::ui::text_field::TextFilter::Numbers;
 use crate::SceneName::Editor;
 use crate::SceneUpdateResult::*;
 use crate::{Scene, SceneName, SceneResult, SUR};
-use pixels_graphics_lib::buffer_graphics_lib::image::Image;
-use pixels_graphics_lib::buffer_graphics_lib::image_loading::load_image;
-use pixels_graphics_lib::prelude::ImageFormat::Png;
 use pixels_graphics_lib::prelude::Positioning::LeftCenter;
 use pixels_graphics_lib::prelude::WrappingStrategy::SpaceBeforeCol;
 use pixels_graphics_lib::prelude::*;
-use std::io::{BufReader, Cursor};
 use std::str::FromStr;
 
 #[derive(Debug)]
@@ -26,7 +22,7 @@ pub struct NewImageDialog {
     background: ShapeCollection,
     error_outline: Polyline,
     error_message: Option<String>,
-    error_icon: Image,
+    // error_icon: Image,
     quick_8: Button,
     quick_12: Button,
     quick_16: Button,
@@ -45,7 +41,7 @@ impl NewImageDialog {
             style.bounds.top_left() + (8, 18),
             6,
             Normal,
-            None,
+            (None, None),
             "",
             &[Numbers],
             &style.text_field,
@@ -59,7 +55,7 @@ impl NewImageDialog {
             style.bounds.top_left() + (8, 50),
             6,
             Normal,
-            None,
+            (None, None),
             "",
             &[Numbers],
             &style.text_field,
@@ -86,10 +82,10 @@ impl NewImageDialog {
             RED,
         )
         .unwrap();
-        let warning_icon_data = include_bytes!("../../assets/icons/warning.png");
-        let cursor = Cursor::new(warning_icon_data);
-        let reader = BufReader::new(cursor);
-        let warning_icon = load_image(reader, Png).unwrap();
+        // let warning_icon_data = include_bytes!("../../assets/icons/warning.png");
+        // let cursor = Cursor::new(warning_icon_data);
+        // let reader = BufReader::new(cursor);
+        // let warning_icon = load_image(reader, Png).unwrap();
         let quick_8 = Button::new(
             style.bounds.top_left() + (138, 8),
             "8x8",
@@ -119,7 +115,7 @@ impl NewImageDialog {
             background,
             error_outline,
             error_message: None,
-            error_icon: warning_icon,
+            // error_icon: warning_icon,
             quick_8,
             quick_12,
             quick_16,
@@ -170,7 +166,7 @@ impl Scene<SceneResult, SceneName> for NewImageDialog {
 
         if let Some(text) = self.error_message.as_ref() {
             self.error_outline.render(graphics);
-            graphics.draw_image(self.error_pos + (6, 12), &self.error_icon);
+            // graphics.draw_image(self.error_pos + (6, 12), &self.error_icon);
             graphics.draw_text(
                 text,
                 TextPos::px(self.error_pos + (26, 20)),

@@ -39,6 +39,7 @@ fn main() -> Result<()> {
                 HEIGHT,
                 &style.alert,
                 &style.button,
+                &style.toggle_button,
             )),
             SceneName::NewImage => list.push(NewImageDialog::new(WIDTH, HEIGHT, &style.dialog)),
             SceneName::SaveFile(ext, filepath) => list.push(SaveFileDialog::new(

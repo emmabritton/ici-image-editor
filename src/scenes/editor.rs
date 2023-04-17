@@ -4,13 +4,11 @@ use crate::ui::prelude::AlertResult::Positive;
 use crate::ui::prelude::*;
 use crate::SceneName::{Palette, SaveFile};
 use crate::SceneUpdateResult::*;
-use crate::{palettes, Scene, SceneName, SceneResult, HEIGHT, SUR, WIDTH};
+use crate::{Scene, SceneName, SceneResult, HEIGHT, SUR, WIDTH};
 use log::error;
-use pixels_graphics_lib::prelude::indexed::IndexedImage;
 use pixels_graphics_lib::prelude::*;
 use pixels_graphics_lib::ui::styles::{AlertStyle, ButtonStyle};
 use std::fs;
-use std::mem::swap;
 use std::path::PathBuf;
 
 const CANVAS_WIDTH: usize = 200;
@@ -94,29 +92,41 @@ impl Editor {
         height: usize,
         alert_style: &AlertStyle,
         button_style: &ButtonStyle,
+        toggle_button_style: &ToggleButtonStyle,
     ) -> Box<Self> {
-        let (file_path, image): (Option<String>, IndexedImage) = match details {
-            EditorDetails::Open(path) => match fs::read_to_string(&path) {
-                Ok(data) => (
-                    Some(path),
-                    ron::from_str(&data).expect("Could not decode ici file in ron format"),
-                ),
+        let (file_path, image): (Option<String>, (IndexedImage, FilePalette)) = match details {
+            EditorDetails::Open(path) => match fs::read(&path) {
+                Ok(data) => (Some(path), IndexedImage::from_file_contents(&data).unwrap()),
                 Err(e) => panic!("opening {path}:  {e}"),
             },
-            EditorDetails::New(w, h) => (
-                None,
-                IndexedImage::new_empty(palettes::Palette::default().colors, w, h),
-            ),
+            EditorDetails::New(w, h) => {
+                let image = IndexedImage::new(
+                    w as u8,
+                    h as u8,
+                    vec![
+                        IciColor::transparent(),
+                        IciColor::new(0, 0, 0, 255),
+                        IciColor::new(255, 255, 255, 255),
+                        IciColor::new(255, 0, 0, 255),
+                        IciColor::new(0, 255, 0, 255),
+                        IciColor::new(0, 0, 255, 255),
+                    ],
+                    vec![0; w * h],
+                )
+                .unwrap();
+                (None, (image, FilePalette::Colors))
+            }
         };
+        let image = image.0;
         let canvas_rect = Rect::new_with_size(CANVAS_POS, CANVAS_WIDTH, CANVAS_HEIGHT);
         let save = Button::new(SAVE_POS, "Save", None, button_style);
         let save_as = Button::new(SAVE_AS_POS, "Save as", None, button_style);
         let clear = Button::new(CLEAR_POS, "Clear", None, button_style);
         let close = Button::new(CLOSE_POS, "Close", None, button_style);
-        let mut pencil = ToggleButton::new(PENCIL_POS, "Pencil", Some(56));
-        let line = ToggleButton::new(LINE_POS, "Line", Some(56));
-        let rect = ToggleButton::new(RECT_POS, "Rect", Some(56));
-        let erase = ToggleButton::new(ERASE_POS, "Eraser", Some(56));
+        let mut pencil = ToggleButton::new(PENCIL_POS, "Pencil", Some(56), toggle_button_style);
+        let line = ToggleButton::new(LINE_POS, "Line", Some(56), toggle_button_style);
+        let rect = ToggleButton::new(RECT_POS, "Rect", Some(56), toggle_button_style);
+        let erase = ToggleButton::new(ERASE_POS, "Eraser", Some(56), toggle_button_style);
         let file_name = file_path
             .as_ref()
             .map(|p| {
@@ -127,11 +137,11 @@ impl Editor {
                     .to_string()
             })
             .unwrap_or(String::from("Untitled"));
-        let tile_size = (CANVAS_WIDTH / image.width().max(image.height()))
+        let tile_size = (CANVAS_WIDTH / (image.width() as usize).max(image.height() as usize))
             .min(16)
             .max(4);
-        let image_width = tile_size * image.width();
-        let image_height = tile_size * image.height();
+        let image_width = tile_size * (image.width() as usize);
+        let image_height = tile_size * (image.height() as usize);
         let image_rect = Rect::new_with_size(
             CANVAS_POS
                 + (
@@ -208,7 +218,8 @@ impl Editor {
 
     fn save_image(&self) {
         if let Some(path) = &self.file_path {
-            if let Err(err) = fs::write(path, ron::to_string(&self.image).unwrap()) {
+            let bytes = self.image.to_file_contents(&FilePalette::Colors).unwrap();
+            if let Err(err) = fs::write(path, bytes) {
                 error!("saving image to {path}: {}", err);
             }
         }
@@ -232,9 +243,12 @@ impl Scene<SceneResult, SceneName> for Editor {
 
         let mut x = 0;
         let mut y = 0;
-        for (i, color) in self.image.colors().iter().enumerate() {
+        for (i, color) in self.image.get_palette().iter().enumerate() {
             let xy = PALETTE_POS + (x * PAL_SPACED, y * PAL_SPACED);
-            graphics.draw_rect(Rect::new_with_size(xy, PAL_SIZE, PAL_SIZE), fill(*color));
+            graphics.draw_rect(
+                Rect::new_with_size(xy, PAL_SIZE, PAL_SIZE),
+                fill(Color::rgba(color.r, color.g, color.b, color.a)),
+            );
             if self.selected_color_idx == i {
                 graphics.draw_rect(Rect::new_with_size(xy, PAL_SIZE, PAL_SIZE), stroke(WHITE));
             }
@@ -247,17 +261,18 @@ impl Scene<SceneResult, SceneName> for Editor {
 
         for x in 0..self.image.width() {
             for y in 0..self.image.height() {
-                let xy = self.image_rect.top_left() + (x * self.tile_size, y * self.tile_size);
-                let i = y * self.image.width() + x;
-                let color_idx = self.image.pixels()[i];
-                let color = self.image.color(color_idx);
+                let xy = self.image_rect.top_left()
+                    + (x as usize * self.tile_size, y as usize * self.tile_size);
+                let i = self.image.get_pixel_index(x, y).unwrap();
+                let color_idx = self.image.get_pixel(i).unwrap();
+                let color = self.image.get_color(color_idx).unwrap();
                 if color.a != 255 {
                     graphics.draw_offset(xy, &self.transparent_placeholder);
                 }
-                if color != TRANSPARENT {
+                if color != IciColor::transparent() {
                     graphics.draw_rect(
                         Rect::new_with_size(xy, self.tile_size, self.tile_size),
-                        fill(color),
+                        fill(Color::rgba(color.r, color.g, color.b, color.a)),
                     );
                 }
             }
@@ -265,19 +280,20 @@ impl Scene<SceneResult, SceneName> for Editor {
 
         if self.image_rect.contains(mouse_xy) {
             let xy = (mouse_xy - self.image_rect.top_left()) / self.tile_size;
+            let temp_clr = self.image.get_palette()[self.selected_color_idx];
             graphics.draw_rect(
                 Rect::new_with_size(
                     xy * self.tile_size + self.image_rect.top_left(),
                     self.tile_size,
                     self.tile_size,
                 ),
-                stroke(self.image.colors()[self.selected_color_idx]),
+                stroke(Color::rgba(temp_clr.r, temp_clr.g, temp_clr.b, temp_clr.a)),
             );
         }
 
         if self.image_rect.contains(mouse_xy) {
             let xy = (mouse_xy - self.image_rect.top_left()) / self.tile_size;
-            let mut color = self.image.colors()[self.selected_color_idx];
+            let mut color = self.image.get_palette()[self.selected_color_idx];
             color.a = 155;
             match self.drawing_mode {
                 DrawingMode::Pencil => graphics.draw_rect(
@@ -286,7 +302,7 @@ impl Scene<SceneResult, SceneName> for Editor {
                         self.tile_size,
                         self.tile_size,
                     ),
-                    stroke(color),
+                    stroke(Color::rgba(color.r, color.g, color.b, color.a)),
                 ),
                 // DrawingMode::Line => match self.shape_start {
                 //     None => graphics.draw_rect(Rect::new_with_size(xy * self.tile_size + self.image_rect.top_left(), self.tile_size, self.tile_size), stroke(color)),
@@ -301,7 +317,7 @@ impl Scene<SceneResult, SceneName> for Editor {
                             self.tile_size,
                             self.tile_size,
                         ),
-                        stroke(color),
+                        stroke(Color::rgba(color.r, color.g, color.b, color.a)),
                     ),
                     Some(start) => {
                         let offset = self.image_rect.top_left();
@@ -314,7 +330,7 @@ impl Scene<SceneResult, SceneName> for Editor {
                                     self.tile_size,
                                     self.tile_size,
                                 ),
-                                stroke(color),
+                                stroke(Color::rgba(color.r, color.g, color.b, color.a)),
                             );
                             graphics.draw_rect(
                                 Rect::new_with_size(
@@ -322,7 +338,7 @@ impl Scene<SceneResult, SceneName> for Editor {
                                     self.tile_size,
                                     self.tile_size,
                                 ),
-                                stroke(color),
+                                stroke(Color::rgba(color.r, color.g, color.b, color.a)),
                             );
                         }
                         for y in top_left.1..=bottom_right.1 {
@@ -332,7 +348,7 @@ impl Scene<SceneResult, SceneName> for Editor {
                                     self.tile_size,
                                     self.tile_size,
                                 ),
-                                stroke(color),
+                                stroke(Color::rgba(color.r, color.g, color.b, color.a)),
                             );
                             graphics.draw_rect(
                                 Rect::new_with_size(
@@ -340,7 +356,7 @@ impl Scene<SceneResult, SceneName> for Editor {
                                     self.tile_size,
                                     self.tile_size,
                                 ),
-                                stroke(color),
+                                stroke(Color::rgba(color.r, color.g, color.b, color.a)),
                             );
                         }
                     }
@@ -395,11 +411,16 @@ impl Scene<SceneResult, SceneName> for Editor {
                         None => error!("Alert was shown but no pending result"),
                         Some(result) => match result {
                             Clear => {
-                                let size = self.image.width() * self.image.height();
-                                swap(
-                                    self.image.pixels_mut(),
-                                    &mut vec![indexed::TRANSPARENT; size],
-                                );
+                                self.image = IndexedImage::new(
+                                    self.image.width(),
+                                    self.image.height(),
+                                    self.image.get_palette().to_vec(),
+                                    vec![
+                                        0;
+                                        self.image.width() as usize * self.image.height() as usize
+                                    ],
+                                )
+                                .unwrap();
                                 self.shape_start = None;
                             }
                             Close => {
@@ -438,9 +459,12 @@ impl Scene<SceneResult, SceneName> for Editor {
         }
         if self.image_rect.contains(xy) {
             let xy = (xy - self.image_rect.top_left()) / self.tile_size;
-            let i = xy.y as usize * self.image.width() + xy.x as usize;
+            let i = xy.y as usize * self.image.width() as usize + xy.x as usize;
             match self.drawing_mode {
-                DrawingMode::Pencil => self.image.pixels_mut()[i] = self.selected_color_idx as u8,
+                DrawingMode::Pencil => self
+                    .image
+                    .set_pixel(i, self.selected_color_idx as u8)
+                    .unwrap(),
                 // DrawingMode::Line => match self.shape_start {
                 //     None => self.shape_start = Some(xy),
                 //     Some(_) => {
@@ -457,19 +481,19 @@ impl Scene<SceneResult, SceneName> for Editor {
                         for x in top_left.0..=bottom_right.0 {
                             let top = top_left.1 * width + x;
                             let bottom = bottom_right.1 * width + x;
-                            self.image.pixels_mut()[top as usize] = color;
-                            self.image.pixels_mut()[bottom as usize] = color;
+                            self.image.set_pixel(top as usize, color).unwrap();
+                            self.image.set_pixel(bottom as usize, color).unwrap();
                         }
                         for y in top_left.1..=bottom_right.1 {
                             let left = y * width + top_left.0;
                             let right = y * width + bottom_right.0;
-                            self.image.pixels_mut()[left as usize] = color;
-                            self.image.pixels_mut()[right as usize] = color;
+                            self.image.set_pixel(left as usize, color).unwrap();
+                            self.image.set_pixel(right as usize, color).unwrap();
                         }
                         self.shape_start = None;
                     }
                 },
-                DrawingMode::Eraser => self.image.pixels_mut()[i] = indexed::TRANSPARENT,
+                DrawingMode::Eraser => self.image.set_pixel(i, 0).unwrap(),
             }
         }
         if self.close.on_mouse_click(xy) {
@@ -489,13 +513,17 @@ impl Scene<SceneResult, SceneName> for Editor {
             self.result = Push(false, SaveFile(String::from("ici"), None))
         }
         if self.pal_edit.on_mouse_click(xy) {
-            self.result = Push(false, Palette(self.image.colors().clone()))
+            let mut colors = vec![];
+            for color in self.image.get_palette() {
+                colors.push(Color::rgba(color.r, color.g, color.b, color.a));
+            }
+            self.result = Push(false, Palette(colors))
         }
         if Rect::new_with_size(PALETTE_POS, PAL_WIDTH, PAL_HEIGHT).contains(xy) {
             let x = (xy.x - PALETTE_POS.x) / PAL_SPACED as isize;
             let y = (xy.y - PALETTE_POS.y) / PAL_SPACED as isize;
             let idx = (x + y * PALETTE_COLS as isize) as usize;
-            if idx < self.image.colors().len() {
+            if idx < self.image.get_palette().len() {
                 self.selected_color_idx = idx;
             }
         }
@@ -517,9 +545,14 @@ impl Scene<SceneResult, SceneName> for Editor {
                 self.save_image();
             }
             Some(SceneResult::Palette(colors)) => {
-                self.image.apply_new_colors(colors);
-                self.selected_color_idx =
-                    self.selected_color_idx.min(self.image.colors().len() - 1);
+                let mut ici_colors = vec![];
+                for color in &colors {
+                    ici_colors.push(IciColor::new(color.r, color.g, color.b, color.a))
+                }
+                self.image.set_palette(&ici_colors).unwrap();
+                self.selected_color_idx = self
+                    .selected_color_idx
+                    .min(self.image.get_palette().len() - 1);
             }
             _ => {}
         }
