@@ -277,7 +277,7 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
         }
     }
 
-    fn on_key_press(&mut self, key: VirtualKeyCode, _: &Vec<&VirtualKeyCode>) {
+    fn on_key_up(&mut self, key: VirtualKeyCode, _: &Vec<&VirtualKeyCode>) {
         self.red.on_key_press(key);
         self.green.on_key_press(key);
         self.blue.on_key_press(key);
@@ -287,7 +287,8 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
         self.current_color = Color { r, g, b, a: 255 };
     }
 
-    fn on_mouse_click(&mut self, xy: Coord, _: &Vec<&VirtualKeyCode>) {
+    fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, _: &Vec<&VirtualKeyCode>) {
+        if button != MouseButton::Left { return; }
         if self.cancel.on_mouse_click(xy) {
             self.result = Pop(None);
         }

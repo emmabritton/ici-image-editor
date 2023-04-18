@@ -175,7 +175,7 @@ impl Scene<SceneResult, SceneName> for NewImageDialog {
         }
     }
 
-    fn on_key_press(&mut self, key: VirtualKeyCode, _: &Vec<&VirtualKeyCode>) {
+    fn on_key_up(&mut self, key: VirtualKeyCode, _: &Vec<&VirtualKeyCode>) {
         if key == VirtualKeyCode::Tab && self.width_field.is_focused() {
             self.width_field.unfocus();
             self.height_field.focus();
@@ -184,7 +184,8 @@ impl Scene<SceneResult, SceneName> for NewImageDialog {
         self.height_field.on_key_press(key);
     }
 
-    fn on_mouse_click(&mut self, xy: Coord, _: &Vec<&VirtualKeyCode>) {
+    fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, _: &Vec<&VirtualKeyCode>) {
+        if button != MouseButton::Left { return; }
         self.width_field.on_mouse_click(xy);
         self.height_field.on_mouse_click(xy);
         if self.submit_button.on_mouse_click(xy) {

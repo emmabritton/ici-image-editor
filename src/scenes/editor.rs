@@ -389,7 +389,7 @@ impl Scene<SceneResult, SceneName> for Editor {
         }
     }
 
-    fn on_key_press(&mut self, key: VirtualKeyCode, held_keys: &Vec<&VirtualKeyCode>) {
+    fn on_key_up(&mut self, key: VirtualKeyCode, held_keys: &Vec<&VirtualKeyCode>) {
         if (held_keys.contains(&&VirtualKeyCode::LControl)
             || held_keys.contains(&&VirtualKeyCode::LWin))
             && key == VirtualKeyCode::Z
@@ -403,7 +403,8 @@ impl Scene<SceneResult, SceneName> for Editor {
         }
     }
 
-    fn on_mouse_click(&mut self, xy: Coord, _: &Vec<&VirtualKeyCode>) {
+    fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, _: &Vec<&VirtualKeyCode>) {
+        if button != MouseButton::Left { return; }
         if self.pending_alert_action.is_some() {
             if let Some(result) = self.alert.on_mouse_click(xy) {
                 if result == Positive {

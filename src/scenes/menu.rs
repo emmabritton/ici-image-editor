@@ -12,7 +12,7 @@ use pixels_graphics_lib::buffer_graphics_lib::text::TextSize::Large;
 use pixels_graphics_lib::buffer_graphics_lib::Graphics;
 use pixels_graphics_lib::prelude::{Coord, UiElement, VirtualKeyCode};
 use pixels_graphics_lib::ui::styles::ButtonStyle;
-use pixels_graphics_lib::Timing;
+use pixels_graphics_lib::{MouseButton, Timing};
 
 const LOGO_POS: Coord = Coord::new(10, 10);
 const NEW_POS: Coord = Coord::new(10, 50);
@@ -68,9 +68,8 @@ impl Scene<SceneResult, SceneName> for Menu {
         self.load_button.render(graphics, mouse_xy);
     }
 
-    fn on_key_press(&mut self, _: VirtualKeyCode, _: &Vec<&VirtualKeyCode>) {}
-
-    fn on_mouse_click(&mut self, xy: Coord, _: &Vec<&VirtualKeyCode>) {
+    fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, _: &Vec<&VirtualKeyCode>) {
+        if button != MouseButton::Left { return; }
         if self.new_button.on_mouse_click(xy) {
             self.result = Push(false, SceneName::NewImage);
         }
