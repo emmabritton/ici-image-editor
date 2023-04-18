@@ -69,7 +69,9 @@ impl Scene<SceneResult, SceneName> for Menu {
     }
 
     fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, _: &Vec<&VirtualKeyCode>) {
-        if button != MouseButton::Left { return; }
+        if button != MouseButton::Left {
+            return;
+        }
         if self.new_button.on_mouse_click(xy) {
             self.result = Push(false, SceneName::NewImage);
         }

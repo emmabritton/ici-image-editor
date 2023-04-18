@@ -404,7 +404,9 @@ impl Scene<SceneResult, SceneName> for Editor {
     }
 
     fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, _: &Vec<&VirtualKeyCode>) {
-        if button != MouseButton::Left { return; }
+        if button != MouseButton::Left {
+            return;
+        }
         if self.pending_alert_action.is_some() {
             if let Some(result) = self.alert.on_mouse_click(xy) {
                 if result == Positive {

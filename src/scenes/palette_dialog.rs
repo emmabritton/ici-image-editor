@@ -288,7 +288,9 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
     }
 
     fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, _: &Vec<&VirtualKeyCode>) {
-        if button != MouseButton::Left { return; }
+        if button != MouseButton::Left {
+            return;
+        }
         if self.cancel.on_mouse_click(xy) {
             self.result = Pop(None);
         }

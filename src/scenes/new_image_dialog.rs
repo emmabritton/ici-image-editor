@@ -185,7 +185,9 @@ impl Scene<SceneResult, SceneName> for NewImageDialog {
     }
 
     fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, _: &Vec<&VirtualKeyCode>) {
-        if button != MouseButton::Left { return; }
+        if button != MouseButton::Left {
+            return;
+        }
         self.width_field.on_mouse_click(xy);
         self.height_field.on_mouse_click(xy);
         if self.submit_button.on_mouse_click(xy) {
