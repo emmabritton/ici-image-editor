@@ -1,9 +1,11 @@
 use pixels_graphics_lib::prelude::*;
 
-pub mod editor;
+// pub mod editor;
 pub mod menu;
+pub mod new_editor;
 pub mod new_image_dialog;
 pub mod palette_dialog;
+pub mod save_palette_dialog;
 
 const BACKGROUND: Color = Color {
     r: 30,

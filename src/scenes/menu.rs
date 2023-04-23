@@ -1,17 +1,16 @@
-use crate::scenes::editor::EditorDetails;
 use crate::scenes::BACKGROUND;
-use crate::ui::button::Button;
-use crate::ui::Ui;
+use crate::ui::canvas::Canvas;
+use crate::ui::palette::PaletteView;
 use crate::SceneName::Editor;
 use crate::SceneUpdateResult::{Nothing, Push};
 use crate::{Scene, SceneName, SceneResult, SUR};
 use pixels_graphics_lib::buffer_graphics_lib::image::Image;
 use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
-use pixels_graphics_lib::buffer_graphics_lib::text::pos::TextPos;
 use pixels_graphics_lib::buffer_graphics_lib::text::wrapping::WrappingStrategy;
 use pixels_graphics_lib::buffer_graphics_lib::text::TextSize::Large;
 use pixels_graphics_lib::buffer_graphics_lib::Graphics;
-use pixels_graphics_lib::prelude::{Coord, VirtualKeyCode};
+use pixels_graphics_lib::prelude::button::Button;
+use pixels_graphics_lib::prelude::*;
 use pixels_graphics_lib::ui::styles::ButtonStyle;
 use pixels_graphics_lib::Timing;
 
@@ -43,7 +42,7 @@ impl Menu {
         let logo = make_image(60, 40, |graphics| {
             graphics.draw_text(
                 "ici Image Editor",
-                TextPos::Px(0, 0),
+                Px(0, 0),
                 (WHITE, Large, WrappingStrategy::SpaceBeforeCol(7)),
             );
         })
@@ -67,11 +66,15 @@ impl Scene<SceneResult, SceneName> for Menu {
 
         self.new_button.render(graphics, mouse_xy);
         self.load_button.render(graphics, mouse_xy);
+
     }
 
-    fn on_key_press(&mut self, _: VirtualKeyCode, _: &Vec<&VirtualKeyCode>) {}
+    fn on_key_up(&mut self, _: VirtualKeyCode, _: &Vec<&VirtualKeyCode>) {}
 
-    fn on_mouse_click(&mut self, xy: Coord, _: &Vec<&VirtualKeyCode>) {
+    fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, _: &Vec<&VirtualKeyCode>) {
+        if button != MouseButton::Left {
+            return;
+        }
         if self.new_button.on_mouse_click(xy) {
             self.result = Push(false, SceneName::NewImage);
         }
@@ -87,7 +90,7 @@ impl Scene<SceneResult, SceneName> for Menu {
     fn resuming(&mut self, result: Option<SceneResult>) {
         if let Some(result) = result {
             self.result = match result {
-                SceneResult::LoadFilePath(path) => Push(false, Editor(EditorDetails::Open(path))),
+                SceneResult::LoadFilePath(path) => Push(false, Editor(true)), //EditorDetails::Open(path))),
                 _ => Nothing,
             }
         } else {

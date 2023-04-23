@@ -1,16 +1,14 @@
 use crate::scenes::dialog_background;
-use crate::scenes::editor::EditorDetails;
-use crate::ui::prelude::*;
-use crate::ui::text_field::TextFilter::Numbers;
 use crate::SceneName::Editor;
 use crate::SceneUpdateResult::*;
 use crate::{Scene, SceneName, SceneResult, SUR};
 use pixels_graphics_lib::buffer_graphics_lib::image::Image;
 use pixels_graphics_lib::buffer_graphics_lib::image_loading::load_image;
-use pixels_graphics_lib::prelude::ImageFormat::Png;
 use pixels_graphics_lib::prelude::Positioning::LeftCenter;
 use pixels_graphics_lib::prelude::WrappingStrategy::SpaceBeforeCol;
 use pixels_graphics_lib::prelude::*;
+use pixels_graphics_lib::ui::prelude::TextFilter::*;
+use pixels_graphics_lib::ui::prelude::*;
 use std::io::{BufReader, Cursor};
 use std::str::FromStr;
 
@@ -26,7 +24,7 @@ pub struct NewImageDialog {
     background: ShapeCollection,
     error_outline: Polyline,
     error_message: Option<String>,
-    error_icon: Image,
+    // error_icon: Image,
     quick_8: Button,
     quick_12: Button,
     quick_16: Button,
@@ -45,7 +43,7 @@ impl NewImageDialog {
             style.bounds.top_left() + (8, 18),
             6,
             Normal,
-            None,
+            (None, None),
             "",
             &[Numbers],
             &style.text_field,
@@ -59,7 +57,7 @@ impl NewImageDialog {
             style.bounds.top_left() + (8, 50),
             6,
             Normal,
-            None,
+            (None, None),
             "",
             &[Numbers],
             &style.text_field,
@@ -86,10 +84,10 @@ impl NewImageDialog {
             RED,
         )
         .unwrap();
-        let warning_icon_data = include_bytes!("../../assets/icons/warning.png");
-        let cursor = Cursor::new(warning_icon_data);
-        let reader = BufReader::new(cursor);
-        let warning_icon = load_image(reader, Png).unwrap();
+        // let warning_icon_data = include_bytes!("../../assets/icons/warning.png");
+        // let cursor = Cursor::new(warning_icon_data);
+        // let reader = BufReader::new(cursor);
+        // let warning_icon = load_image(reader, Png).unwrap();
         let quick_8 = Button::new(
             style.bounds.top_left() + (138, 8),
             "8x8",
@@ -119,7 +117,7 @@ impl NewImageDialog {
             background,
             error_outline,
             error_message: None,
-            error_icon: warning_icon,
+            // error_icon: warning_icon,
             quick_8,
             quick_12,
             quick_16,
@@ -151,7 +149,7 @@ impl NewImageDialog {
     }
 
     fn set_success(&mut self, width: usize, height: usize) {
-        self.result = Push(true, Editor(EditorDetails::New(width, height)));
+        self.result = Push(true, Editor(true)); //EditorDetails::New(width, height)));
     }
 }
 
@@ -170,7 +168,7 @@ impl Scene<SceneResult, SceneName> for NewImageDialog {
 
         if let Some(text) = self.error_message.as_ref() {
             self.error_outline.render(graphics);
-            graphics.draw_image(self.error_pos + (6, 12), &self.error_icon);
+            // graphics.draw_image(self.error_pos + (6, 12), &self.error_icon);
             graphics.draw_text(
                 text,
                 TextPos::px(self.error_pos + (26, 20)),
@@ -179,7 +177,7 @@ impl Scene<SceneResult, SceneName> for NewImageDialog {
         }
     }
 
-    fn on_key_press(&mut self, key: VirtualKeyCode, _: &Vec<&VirtualKeyCode>) {
+    fn on_key_up(&mut self, key: VirtualKeyCode, _: &Vec<&VirtualKeyCode>) {
         if key == VirtualKeyCode::Tab && self.width_field.is_focused() {
             self.width_field.unfocus();
             self.height_field.focus();
@@ -188,7 +186,10 @@ impl Scene<SceneResult, SceneName> for NewImageDialog {
         self.height_field.on_key_press(key);
     }
 
-    fn on_mouse_click(&mut self, xy: Coord, _: &Vec<&VirtualKeyCode>) {
+    fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, _: &Vec<&VirtualKeyCode>) {
+        if button != MouseButton::Left {
+            return;
+        }
         self.width_field.on_mouse_click(xy);
         self.height_field.on_mouse_click(xy);
         if self.submit_button.on_mouse_click(xy) {

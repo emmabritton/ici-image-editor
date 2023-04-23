@@ -1,12 +1,12 @@
 use crate::palettes::Palette;
 use crate::scenes::dialog_background;
-use crate::ui::prelude::TextFilter::Numbers;
-use crate::ui::prelude::*;
 use crate::SceneName::{LoadFile, SaveFile};
 use crate::SceneUpdateResult::{Nothing, Pop};
 use crate::{Scene, SceneName, SceneResult, SUR};
 use pixels_graphics_lib::prelude::*;
 use pixels_graphics_lib::scenes::SceneUpdateResult::Push;
+use pixels_graphics_lib::ui::prelude::TextFilter::Numbers;
+use pixels_graphics_lib::ui::prelude::*;
 use std::fs;
 use std::str::FromStr;
 
@@ -117,7 +117,7 @@ impl PaletteDialog {
             dialog_pos + (70, 94),
             3,
             Normal,
-            None,
+            (None, None),
             "",
             &[Numbers],
             &style.text_field,
@@ -126,7 +126,7 @@ impl PaletteDialog {
             dialog_pos + (70, 106),
             3,
             Normal,
-            None,
+            (None, None),
             "",
             &[Numbers],
             &style.text_field,
@@ -135,7 +135,7 @@ impl PaletteDialog {
             dialog_pos + (70, 118),
             3,
             Normal,
-            None,
+            (None, None),
             "",
             &[Numbers],
             &style.text_field,
@@ -277,7 +277,7 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
         }
     }
 
-    fn on_key_press(&mut self, key: VirtualKeyCode, _: &Vec<&VirtualKeyCode>) {
+    fn on_key_up(&mut self, key: VirtualKeyCode, _: &Vec<&VirtualKeyCode>) {
         self.red.on_key_press(key);
         self.green.on_key_press(key);
         self.blue.on_key_press(key);
@@ -287,7 +287,10 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
         self.current_color = Color { r, g, b, a: 255 };
     }
 
-    fn on_mouse_click(&mut self, xy: Coord, _: &Vec<&VirtualKeyCode>) {
+    fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, _: &Vec<&VirtualKeyCode>) {
+        if button != MouseButton::Left {
+            return;
+        }
         if self.cancel.on_mouse_click(xy) {
             self.result = Pop(None);
         }

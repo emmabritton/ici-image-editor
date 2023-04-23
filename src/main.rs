@@ -1,10 +1,12 @@
 mod palettes;
 mod scenes;
+mod ui;
 
-use crate::scenes::editor::{Editor, EditorDetails};
 use crate::scenes::menu::Menu;
+use crate::scenes::new_editor::Editor;
 use crate::scenes::new_image_dialog::NewImageDialog;
 use crate::scenes::palette_dialog::PaletteDialog;
+use crate::scenes::save_palette_dialog::SavePaletteDataDialog;
 use color_eyre::Result;
 use log::LevelFilter;
 use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
@@ -33,13 +35,7 @@ fn main() -> Result<()> {
     let switcher: SceneSwitcher<SceneResult, SceneName> = |style, list, name| {
         let style = style;
         match name {
-            SceneName::Editor(details) => list.push(Editor::new(
-                details,
-                WIDTH,
-                HEIGHT,
-                &style.alert,
-                &style.button,
-            )),
+            SceneName::Editor(details) => list.push(Editor::new(WIDTH, HEIGHT, &style)), //list.push(SavePaletteDataDialog::new(WIDTH, HEIGHT, &style.alert, &style.dialog)),
             SceneName::NewImage => list.push(NewImageDialog::new(WIDTH, HEIGHT, &style.dialog)),
             SceneName::SaveFile(ext, filepath) => list.push(SaveFileDialog::new(
                 filepath,
@@ -57,6 +53,12 @@ fn main() -> Result<()> {
             SceneName::Palette(colors) => {
                 list.push(PaletteDialog::new(colors, WIDTH, HEIGHT, &style.dialog))
             }
+            SceneName::SavePaletteData => list.push(SavePaletteDataDialog::new(
+                WIDTH,
+                HEIGHT,
+                &style.alert,
+                &style.dialog,
+            )),
         }
     };
 
@@ -77,17 +79,19 @@ fn main() -> Result<()> {
 
 #[derive(Debug, Clone, PartialEq)]
 enum SceneName {
-    Editor(EditorDetails),
+    Editor(bool),
     NewImage,
     SaveFile(String, Option<String>),
     LoadFile(String),
     Palette(Vec<Color>),
+    SavePaletteData,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 enum SceneResult {
     LoadFilePath(String),
     SaveFilePath(String),
+    SavePaletteData(FilePalette),
     Palette(Vec<Color>),
 }
 
