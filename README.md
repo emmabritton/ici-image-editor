@@ -1,6 +1,6 @@
 # ICI Image Editor
 
-Used to edit ICI images (`IndexedImage`) from [buffer-graphics-lib](https://github.com/emmabritton/buffer-graphics-lib)
+Used to edit ICI images (`IndexedImage`) from [ici-files](https://github.com/emmabritton/ici-files)
 
 ## Screenshots
 
