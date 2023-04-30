@@ -1,3 +1,4 @@
+use crate::palettes::Palette;
 use crate::scenes::BACKGROUND;
 use crate::ui::canvas::{Canvas, Tool};
 use crate::ui::palette::PaletteView;
@@ -198,7 +199,11 @@ impl Editor {
         let frames = vec![IndexedImage::new(
             image_size.0,
             image_size.1,
-            vec![IciColor::transparent(), IciColor::new(255, 0, 0, 255)],
+            Palette::default()
+                .colors
+                .iter()
+                .map(|c| c.to_ici())
+                .collect(),
             vec![0; image_size.0 as usize * image_size.1 as usize],
         )
         .unwrap()];
