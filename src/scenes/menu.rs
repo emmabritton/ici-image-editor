@@ -1,6 +1,5 @@
+use crate::scenes::new_editor::EditorDetails;
 use crate::scenes::BACKGROUND;
-use crate::ui::canvas::Canvas;
-use crate::ui::palette::PaletteView;
 use crate::SceneName::Editor;
 use crate::SceneUpdateResult::{Nothing, Push};
 use crate::{Scene, SceneName, SceneResult, SUR};
@@ -66,7 +65,6 @@ impl Scene<SceneResult, SceneName> for Menu {
 
         self.new_button.render(graphics, mouse_xy);
         self.load_button.render(graphics, mouse_xy);
-
     }
 
     fn on_key_up(&mut self, _: VirtualKeyCode, _: &Vec<&VirtualKeyCode>) {}
@@ -90,7 +88,7 @@ impl Scene<SceneResult, SceneName> for Menu {
     fn resuming(&mut self, result: Option<SceneResult>) {
         if let Some(result) = result {
             self.result = match result {
-                SceneResult::LoadFilePath(path) => Push(false, Editor(true)), //EditorDetails::Open(path))),
+                SceneResult::LoadFilePath(path) => Push(false, Editor(EditorDetails::Open(path))),
                 _ => Nothing,
             }
         } else {

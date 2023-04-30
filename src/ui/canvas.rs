@@ -1,5 +1,14 @@
+use fnv::FnvHashSet;
 use log::error;
 use pixels_graphics_lib::prelude::*;
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum Tool {
+    Pencil,
+    Line,
+    Rect,
+    Fill,
+}
 
 #[derive(Debug)]
 pub struct Canvas {
@@ -9,6 +18,8 @@ pub struct Canvas {
     trans_background_colors: (Color, Color),
     cursor_color: Color,
     selected_color_idx: u8,
+    tool: Tool,
+    first_click_at: Option<(u8, u8)>,
 }
 
 impl Canvas {
@@ -19,7 +30,9 @@ impl Canvas {
             screen_px_per_image_px: 1,
             trans_background_colors: (LIGHT_GRAY, DARK_GRAY),
             cursor_color: RED,
-            selected_color_idx: 1
+            selected_color_idx: 1,
+            tool: Tool::Pencil,
+            first_click_at: None,
         }
     }
 }
@@ -36,18 +49,124 @@ impl Canvas {
         &self.image
     }
 
-    pub fn on_mouse_click(&mut self, mouse_xy: Coord) {
+    // pub fn on_mouse_click(&mut self, mouse_xy: Coord) {
+    //     if self.bounds.contains(mouse_xy) {
+    //         let (x, y) = self.mouse_to_image(mouse_xy);
+    //         match self.image.get_pixel_index(x, y) {
+    //             Ok(px_idx) => self.image.set_pixel(px_idx, self.selected_color_idx).expect("Canvas palette data corrupt?"),
+    //             Err(e) =>
+    //                 error!("Attempted to draw outside canvas: {e:?} at mouse {mouse_xy:?}, px ({x},{y}), bounds: {},{}", self.bounds.width(), self.bounds.height())
+    //         }
+    //     }
+    // }
+
+    pub fn on_mouse_down(&mut self, mouse_xy: Coord) {
         if self.bounds.contains(mouse_xy) {
-            let offset_xy = mouse_xy - self.bounds.top_left();
-            let img_coord = offset_xy / self.screen_px_per_image_px;
-            let x = img_coord.x.min(255).max(0) as u8;
-            let y = img_coord.y.min(255).max(0) as u8;
-            match self.image.get_pixel_index(x,y) {
-                Ok(px_idx) => self.image.set_pixel(px_idx, self.selected_color_idx).expect("Canvas palette data corrupt?"),
-                Err(e) =>
-                    error!("Attempted to draw outside canvas: {e:?} at mouse {mouse_xy:?}, px {img_coord:?}, bounds: {},{}", self.bounds.width(), self.bounds.height())
+            let (x, y) = self.mouse_to_image(mouse_xy);
+            if self.image.get_pixel_index(x, y).is_ok() {
+                if self.tool == Tool::Pencil {
+                    if let Err(e) = self.image.get_pixel_index(x, y)
+                        .and_then(|idx| self.image.set_pixel(idx, self.selected_color_idx)) {
+                        error!("Error drawing {:?} at {x},{y}: {e:?}", self.tool);
+                    }
+                } else if self.first_click_at.is_none() {
+                    self.first_click_at = Some((x, y));
+                }
             }
         }
+    }
+
+    pub fn on_mouse_up(&mut self, mouse_xy: Coord) {
+        if self.bounds.contains(mouse_xy) {
+            let (x, y) = self.mouse_to_image(mouse_xy);
+            let result = match (self.tool, self.first_click_at) {
+                (Tool::Line, Some(start)) => self.line(start, (x, y)),
+                (Tool::Rect, Some(start)) => self.rect(start, (x, y)),
+                (Tool::Fill, Some(start)) => self.fill(start),
+                _ => Ok(())
+            };
+            if let Err(e) = result {
+                error!("Error drawing {:?} at {x},{y}: {e:?}", self.tool);
+            }
+        }
+        self.first_click_at = None;
+    }
+
+    fn line(&mut self, start: (u8, u8), end: (u8, u8)) -> Result<(), IndexedImageError> {
+        let points = Line::new(start, end).outline_pixels();
+
+        for point in points {
+            let i = self.image.get_pixel_index(point.x as u8, point.y as u8)?;
+            self.image.set_pixel(i, self.selected_color_idx)?;
+        }
+
+        Ok(())
+    }
+
+
+    fn rect(&mut self, start: (u8, u8), end: (u8, u8)) -> Result<(), IndexedImageError> {
+        let top_left = ((start.0).min(end.0), (start.1).min(end.1));
+        let bottom_right = ((start.0).max(end.0), (start.1).max(end.1));
+
+        for x in top_left.0..bottom_right.0 {
+            let i = self.image.get_pixel_index(x, top_left.1)?;
+            self.image.set_pixel(i, self.selected_color_idx)?;
+            let i = self.image.get_pixel_index(x, bottom_right.1)?;
+            self.image.set_pixel(i, self.selected_color_idx)?;
+        }
+
+        for y in top_left.1..=bottom_right.1 {
+            let i = self.image.get_pixel_index(top_left.0, y)?;
+            self.image.set_pixel(i, self.selected_color_idx)?;
+            let i = self.image.get_pixel_index(bottom_right.0, y)?;
+            self.image.set_pixel(i, self.selected_color_idx)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn clear(&mut self) {
+        let width = self.image.width();
+        let height = self.image.height();
+        let palette = self.image.get_palette().to_vec();
+        self.image = IndexedImage::new(width, height, palette, vec![0; width as usize * height as usize]).unwrap()
+    }
+
+    fn fill(&mut self, start: (u8, u8)) -> Result<(), IndexedImageError> {
+        let i = self.image.get_pixel_index(start.0, start.1)?;
+        let replace_color = self.image.get_pixel(i)?;
+        let to_replace = self.get_valid_neighbours(FnvHashSet::default(),start, replace_color)?;
+
+        for idx in to_replace {
+            self.image.set_pixel(idx, self.selected_color_idx)?;
+        }
+
+        Ok(())
+    }
+
+    fn get_valid_neighbours(&self, set: FnvHashSet<usize>, start: (u8, u8), replace_color: u8) -> Result<FnvHashSet<usize>, IndexedImageError> {
+        let start = (start.0 as isize, start.1 as isize);
+        let set = self.check_and_set(set,start, replace_color, (-1, 0))?;
+        let set = self.check_and_set(set,start, replace_color, (1, 0))?;
+        let set = self.check_and_set(set,start, replace_color, (0, -1))?;
+        self.check_and_set(set,start, replace_color, (0, 1))
+    }
+
+    fn check_and_set(&self, mut set: FnvHashSet<usize>, start: (isize, isize), replace_color: u8, diff:(isize, isize)) -> Result<FnvHashSet<usize>, IndexedImageError> {
+        let target = (start.0 + diff.0, start.1 + diff.1);
+        if target.0 >= 0 && target.0 < self.image.width() as isize &&
+            target.1 >= 0 && target.1 < self.image.height() as isize {
+            let start = (target.0 as u8, target.1 as u8);
+            let i = self.image.get_pixel_index(start.0, start.1)?;
+            if !set.contains(&i) {
+                let color = self.image.get_pixel(i)?;
+                if color == replace_color {
+                    set.insert(i);
+                    return self.get_valid_neighbours(set, start, replace_color);
+                }
+            }
+        }
+        Ok(set)
     }
 
     pub fn trans_background_colors(&self) -> (Color, Color) {
@@ -58,28 +177,51 @@ impl Canvas {
         self.trans_background_colors = trans_background_colors;
     }
 
-    pub fn set_cursor_color(&mut self, cursor_color: Color) {
-        self.cursor_color = cursor_color;
-    }
-
-    fn draw_cursor(&self, graphics: &mut Graphics, mouse_xy: Coord) {
-        if self.bounds.contains(mouse_xy) {
-            let offset_xy = mouse_xy - self.bounds.top_left();
-            let img_coord = offset_xy / self.screen_px_per_image_px;
-            let px_size = self.screen_px_per_image_px as isize;
-            graphics.draw_rect(
-                Rect::new_with_size(
-                    self.bounds.top_left()+(
-                        img_coord.x * px_size,
-                        img_coord.y * px_size,
-                    ),
-                    self.screen_px_per_image_px-1,
-                    self.screen_px_per_image_px-1,
-                ),
-                stroke(self.cursor_color),
-            );
+    pub fn set_color(&mut self, idx: u8) {
+        if let Ok(color) = self.image.get_color(idx) {
+            self.cursor_color = color.to_color();
+            self.selected_color_idx = idx;
         }
     }
+
+    fn mouse_to_image(&self, mouse_xy: Coord) -> (u8, u8) {
+        let offset_xy = mouse_xy - self.bounds.top_left();
+        let img_coord = offset_xy / self.screen_px_per_image_px;
+        let x = img_coord.x.min(255).max(0) as u8;
+        let y = img_coord.y.min(255).max(0) as u8;
+        (x, y)
+    }
+
+    pub fn tool(&self) -> Tool {
+        self.tool
+    }
+
+    pub fn set_tool(&mut self, tool: Tool) {
+        self.tool = tool;
+    }
+}
+
+impl Canvas {
+
+    fn draw_mouse_highlight(&self, graphics: &mut Graphics, mouse_xy: Coord) {
+        if self.bounds.contains(mouse_xy) {
+            let xy = self.mouse_to_image(mouse_xy);
+            self.draw_cursor_on_image(graphics, xy);
+        }
+    }
+
+    fn draw_cursor_on_image(&self, graphics: &mut Graphics, xy: (u8, u8)) {
+        let top_left = (Coord::from(xy) * self.screen_px_per_image_px) + self.bounds.top_left();
+        graphics.draw_rect(
+            Rect::new_with_size(
+                top_left,
+                self.screen_px_per_image_px - 1,
+                self.screen_px_per_image_px - 1,
+            ),
+            stroke(self.cursor_color),
+        );
+    }
+
     fn draw_img_px(&self, graphics: &mut Graphics, img_x: u8, img_y: u8, trans_color: Color) {
         let img_i = self.image.get_pixel_index(img_x, img_y).unwrap();
         let color_idx = self.image.get_pixel(img_i).unwrap();
@@ -92,12 +234,9 @@ impl Canvas {
                 1 => graphics.set_pixel(scr_x, scr_y, trans_color),
                 _ => graphics.draw_rect(
                     Rect::new_with_size(
-                        (
-                            scr_x,
-                            scr_y,
-                        ),
-                        self.screen_px_per_image_px-1,
-                        self.screen_px_per_image_px-1,
+                        (scr_x, scr_y),
+                        self.screen_px_per_image_px - 1,
+                        self.screen_px_per_image_px - 1,
                     ),
                     fill(trans_color),
                 ),
@@ -107,16 +246,38 @@ impl Canvas {
                 1 => graphics.set_pixel(scr_x, scr_y, color.to_color()),
                 _ => graphics.draw_rect(
                     Rect::new_with_size(
-                        (
-                            scr_x,
-                            scr_y,
-                        ),
-                        self.screen_px_per_image_px-1,
-                        self.screen_px_per_image_px-1,
+                        (scr_x, scr_y),
+                        self.screen_px_per_image_px - 1,
+                        self.screen_px_per_image_px - 1,
                     ),
                     fill(color.to_color()),
                 ),
             }
+        }
+    }
+
+    fn temp_line(&self, graphics: &mut Graphics, start: (u8, u8), mouse_xy: Coord) {
+        let end = self.mouse_to_image(mouse_xy);
+
+        let points = Line::new(start, end).outline_pixels();
+        for point in points {
+            self.draw_cursor_on_image(graphics, (point.x as u8, point.y as u8));
+        }
+    }
+
+    fn temp_rect(&self, graphics: &mut Graphics, start: (u8, u8), mouse_xy: Coord) {
+        let end = self.mouse_to_image(mouse_xy);
+        let top_left = ((start.0).min(end.0), (start.1).min(end.1));
+        let bottom_right = ((start.0).max(end.0), (start.1).max(end.1));
+
+        for x in top_left.0..bottom_right.0 {
+            self.draw_cursor_on_image(graphics, (x, top_left.1));
+            self.draw_cursor_on_image(graphics, (x, bottom_right.1));
+        }
+
+        for y in top_left.1..=bottom_right.1 {
+            self.draw_cursor_on_image(graphics, (top_left.0, y));
+            self.draw_cursor_on_image(graphics, (bottom_right.0, y));
         }
     }
 }
@@ -148,8 +309,13 @@ impl UiElement for Canvas {
         }
 
         graphics.set_translate(orig_trans);
-        self.draw_cursor(graphics, mouse_xy);
-        // graphics.draw_rect(self.bounds, stroke(LIGHT_GRAY));
+        if self.bounds.contains(mouse_xy) {
+            match (self.tool, self.first_click_at) {
+                (Tool::Line, Some(start)) => self.temp_line(graphics, start, mouse_xy),
+                (Tool::Rect, Some(start)) => self.temp_rect(graphics, start, mouse_xy),
+                _ => self.draw_mouse_highlight(graphics, mouse_xy)
+            }
+        }
     }
 
     fn update(&mut self, _: &Timing) {}

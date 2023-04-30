@@ -1,15 +1,13 @@
 use crate::scenes::dialog_background;
+use crate::scenes::new_editor::EditorDetails;
 use crate::SceneName::Editor;
 use crate::SceneUpdateResult::*;
 use crate::{Scene, SceneName, SceneResult, SUR};
-use pixels_graphics_lib::buffer_graphics_lib::image::Image;
-use pixels_graphics_lib::buffer_graphics_lib::image_loading::load_image;
 use pixels_graphics_lib::prelude::Positioning::LeftCenter;
 use pixels_graphics_lib::prelude::WrappingStrategy::SpaceBeforeCol;
 use pixels_graphics_lib::prelude::*;
 use pixels_graphics_lib::ui::prelude::TextFilter::*;
 use pixels_graphics_lib::ui::prelude::*;
-use std::io::{BufReader, Cursor};
 use std::str::FromStr;
 
 #[derive(Debug)]
@@ -128,7 +126,7 @@ impl NewImageDialog {
 
 #[allow(clippy::unnecessary_unwrap)] //for readability, it is necessary
 impl NewImageDialog {
-    fn verify(&self) -> Result<(usize, usize), String> {
+    fn verify(&self) -> Result<(u8, u8), String> {
         if self.width_field.content().is_empty() {
             Err(String::from("Width must be provided"))
         } else if self.height_field.content().is_empty() {
@@ -141,15 +139,15 @@ impl NewImageDialog {
             } else if height.is_err() {
                 Err(String::from("Height is invalid"))
             } else {
-                let width = width.unwrap() as usize;
-                let height = height.unwrap() as usize;
+                let width = width.unwrap() as u8;
+                let height = height.unwrap() as u8;
                 Ok((width, height))
             }
         }
     }
 
-    fn set_success(&mut self, width: usize, height: usize) {
-        self.result = Push(true, Editor(true)); //EditorDetails::New(width, height)));
+    fn set_success(&mut self, width: u8, height: u8) {
+        self.result = Push(true, Editor(EditorDetails::New(width, height)));
     }
 }
 

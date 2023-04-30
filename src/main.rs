@@ -3,7 +3,7 @@ mod scenes;
 mod ui;
 
 use crate::scenes::menu::Menu;
-use crate::scenes::new_editor::Editor;
+use crate::scenes::new_editor::{Editor, EditorDetails};
 use crate::scenes::new_image_dialog::NewImageDialog;
 use crate::scenes::palette_dialog::PaletteDialog;
 use crate::scenes::save_palette_dialog::SavePaletteDataDialog;
@@ -35,7 +35,7 @@ fn main() -> Result<()> {
     let switcher: SceneSwitcher<SceneResult, SceneName> = |style, list, name| {
         let style = style;
         match name {
-            SceneName::Editor(details) => list.push(Editor::new(WIDTH, HEIGHT, &style)), //list.push(SavePaletteDataDialog::new(WIDTH, HEIGHT, &style.alert, &style.dialog)),
+            SceneName::Editor(details) => list.push(Editor::new(WIDTH, HEIGHT, details, &style)), //list.push(SavePaletteDataDialog::new(WIDTH, HEIGHT, &style.alert, &style.dialog)),
             SceneName::NewImage => list.push(NewImageDialog::new(WIDTH, HEIGHT, &style.dialog)),
             SceneName::SaveFile(ext, filepath) => list.push(SaveFileDialog::new(
                 filepath,
@@ -79,7 +79,7 @@ fn main() -> Result<()> {
 
 #[derive(Debug, Clone, PartialEq)]
 enum SceneName {
-    Editor(bool),
+    Editor(EditorDetails),
     NewImage,
     SaveFile(String, Option<String>),
     LoadFile(String),

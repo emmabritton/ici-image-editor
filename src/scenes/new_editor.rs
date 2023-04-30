@@ -1,8 +1,9 @@
 use crate::scenes::BACKGROUND;
+use crate::ui::canvas::{Canvas, Tool};
 use crate::{SceneName, SceneResult, SUR, WIDTH};
 use pixels_graphics_lib::prelude::*;
-use pixels_graphics_lib::scenes::SceneUpdateResult::Nothing;
-use pixels_graphics_lib::ui::prelude::TextFilter::{Decimal, Filename};
+use pixels_graphics_lib::scenes::SceneUpdateResult::{Nothing, Pop};
+use pixels_graphics_lib::ui::prelude::TextFilter::Decimal;
 use pixels_graphics_lib::ui::prelude::*;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -21,6 +22,13 @@ const FRAME_CONTROL_SPACING: isize = 20;
 const TOOL_PENCIL: usize = 0;
 const TOOL_LINE: usize = 1;
 const TOOL_RECT: usize = 2;
+const TOOL_FILL: usize = 3;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum EditorDetails {
+    Open(String),
+    New(u8, u8),
+}
 
 pub struct Editor {
     result: SUR,
@@ -38,10 +46,17 @@ pub struct Editor {
     alert: Alert,
     pending_alert_action: Option<AlertAction>,
     file_name: String,
+    canvas: Canvas,
+    frames: Vec<IndexedImage>,
 }
 
 impl Editor {
-    pub fn new(width: usize, height: usize, style: &UiStyle) -> Box<Editor> {
+    pub fn new(
+        width: usize,
+        height: usize,
+        details: EditorDetails,
+        style: &UiStyle,
+    ) -> Box<Editor> {
         let save = Button::new((PADDING, BUTTON_Y), "Save", None, &style.button);
         let save_as = Button::new(
             (save.bounds().bottom_right().x + PADDING, BUTTON_Y),
@@ -49,7 +64,7 @@ impl Editor {
             None,
             &style.button,
         );
-        let clear = Button::new((180, BUTTON_Y), "Clear", None, &style.button);
+        let clear = Button::new((188, BUTTON_Y), "Clear", None, &style.button);
         let close = Button::new(
             (
                 (width - clear.bounds().width()) as isize - PADDING,
@@ -119,7 +134,7 @@ impl Editor {
             &style.text_field,
         );
         let pencil_tool = ToggleIconButton::new(
-            (110, BUTTON_Y),
+            (105, BUTTON_Y),
             "Pencil",
             Positioning::CenterBottom,
             IndexedImage::from_file_contents(include_bytes!("../../assets/icons/pencil.ici"))
@@ -145,18 +160,48 @@ impl Editor {
                 .0,
             &style.toggle_icon_button,
         );
+        let fill_tool = ToggleIconButton::new(
+            (rect_tool.bounds().bottom_right().x + PADDING, BUTTON_Y),
+            "Fill",
+            Positioning::CenterBottom,
+            IndexedImage::from_file_contents(include_bytes!("../../assets/icons/fill.ici"))
+                .unwrap()
+                .0,
+            &style.toggle_icon_button,
+        );
         let tools = ToggleIconButtonGroup::new(vec![
             (TOOL_PENCIL, pencil_tool),
             (TOOL_LINE, line_tool),
             (TOOL_RECT, rect_tool),
+            (TOOL_FILL, fill_tool),
         ]);
+        let mut canvas = Canvas::new(
+            Coord::new(
+                palette.bounds().bottom_right().x + PADDING,
+                palette.bounds().top_left().y,
+            ),
+            (200, 200),
+        );
         add_frame.set_state(ElementState::Disabled);
         remove_frame.set_state(ElementState::Disabled);
         copy_frame.set_state(ElementState::Disabled);
         play_pause.set_state(ElementState::Disabled);
         speed.set_state(ElementState::Disabled);
+        let mut image_size = (8, 8);
+        if let EditorDetails::New(w, h) = details {
+            image_size = (w, h);
+        }
+        let frames = vec![IndexedImage::new(
+            image_size.0,
+            image_size.1,
+            vec![IciColor::transparent(), IciColor::new(255, 0, 0, 255)],
+            vec![0; image_size.0 as usize * image_size.1 as usize],
+        )
+        .unwrap()];
+        canvas.set_color(1);
+        canvas.set_image(frames[0].clone());
         Box::new(Self {
-            result: SceneUpdateResult::Nothing,
+            result: Nothing,
             clear,
             tools,
             save,
@@ -171,6 +216,8 @@ impl Editor {
             alert,
             pending_alert_action: None,
             file_name: String::from("untitled"),
+            canvas,
+            frames,
         })
     }
 }
@@ -197,10 +244,18 @@ impl Scene<SceneResult, SceneName> for Editor {
         self.clear.render(graphics, mouse_xy);
         self.close.render(graphics, mouse_xy);
         self.palette.render(graphics, mouse_xy);
+        self.canvas.render(graphics, mouse_xy);
     }
 
     fn on_key_up(&mut self, key: VirtualKeyCode, _: &Vec<&VirtualKeyCode>) {
         self.speed.on_key_press(key);
+    }
+
+    fn on_mouse_down(&mut self, xy: Coord, button: MouseButton, _: &Vec<&VirtualKeyCode>) {
+        if button != MouseButton::Left {
+            return;
+        }
+        self.canvas.on_mouse_down(xy);
     }
 
     fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, _: &Vec<&VirtualKeyCode>) {
@@ -209,20 +264,26 @@ impl Scene<SceneResult, SceneName> for Editor {
         }
         if let Some(tool_id) = self.tools.on_mouse_click(xy) {
             match tool_id {
-                TOOL_PENCIL => {}
-                TOOL_LINE => {}
-                TOOL_RECT => {}
+                TOOL_PENCIL => self.canvas.set_tool(Tool::Pencil),
+                TOOL_LINE => self.canvas.set_tool(Tool::Line),
+                TOOL_RECT => self.canvas.set_tool(Tool::Rect),
+                TOOL_FILL => self.canvas.set_tool(Tool::Fill),
                 _ => {}
             }
         }
         if self.add_frame.on_mouse_click(xy) {}
         if self.remove_frame.on_mouse_click(xy) {}
         if self.copy_frame.on_mouse_click(xy) {}
-        if self.close.on_mouse_click(xy) {}
-        if self.clear.on_mouse_click(xy) {}
+        if self.close.on_mouse_click(xy) {
+            self.result = Pop(None);
+        }
+        if self.clear.on_mouse_click(xy) {
+            self.canvas.clear();
+        }
         if self.save.on_mouse_click(xy) {}
         if self.save_as.on_mouse_click(xy) {}
         if self.palette.on_mouse_click(xy) {}
+        self.canvas.on_mouse_up(xy);
     }
 
     fn on_scroll(&mut self, xy: Coord, y_diff: isize, x_diff: isize, _: &Vec<&VirtualKeyCode>) {}
