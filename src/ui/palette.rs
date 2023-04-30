@@ -8,7 +8,7 @@ const PER_SQUARE: usize = SPACING + SQUARE_SIZE;
 pub struct PaletteView {
     bounds: Rect,
     colors: Vec<IciColor>,
-    selected: usize,
+    selected: u8,
     rows: usize,
     cols: usize,
 }
@@ -32,24 +32,30 @@ impl PaletteView {
         self.cols = new_colors.len() / self.rows;
     }
 
-    pub fn get_selected_color(&self) -> IciColor {
-        self.colors[self.selected]
+    pub fn set_color_index(&mut self, idx: u8) {
+        self.selected = idx;
     }
 
-    pub fn get_selected_idx(&self) -> usize {
+    pub fn get_selected_color(&self) -> IciColor {
+        self.colors[self.selected as usize]
+    }
+
+    pub fn get_selected_idx(&self) -> u8 {
         self.selected
     }
 
-    pub fn on_mouse_click(&mut self, mouse_xy: Coord) {
+    pub fn on_mouse_click(&mut self, mouse_xy: Coord) -> bool {
         if self.bounds.contains(mouse_xy) {
             let xy = mouse_xy - self.bounds.top_left();
             let x = xy.x / PER_SQUARE as isize;
             let y = xy.y / PER_SQUARE as isize;
             let i = x + y * (self.cols as isize);
             if i >= 0 && i < self.colors.len() as isize {
-                self.selected = i as usize;
+                self.selected = i as u8;
+                return true;
             }
         }
+        false
     }
 }
 
@@ -80,7 +86,7 @@ impl UiElement for PaletteView {
                     );
                 }
 
-                if i == self.selected {
+                if i == self.selected as usize {
                     graphics.draw_rect(
                         Rect::new_with_size(top_left - 1, SQUARE_SIZE + 2, SQUARE_SIZE + 2),
                         stroke(WHITE),

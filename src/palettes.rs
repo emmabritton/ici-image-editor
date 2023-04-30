@@ -81,7 +81,7 @@ impl Palette {
 impl Default for Palette {
     fn default() -> Self {
         Palette::new(vec![
-            WHITE, BLACK, LIGHT_GRAY, DARK_GRAY, RED, GREEN, BLUE, CYAN, MAGENTA, YELLOW, ORANGE,
+            TRANSPARENT, WHITE, BLACK, LIGHT_GRAY, DARK_GRAY, RED, GREEN, BLUE, CYAN, MAGENTA, YELLOW, ORANGE,
             PURPLE, BROWN,
         ])
     }
@@ -105,6 +105,10 @@ impl Palette {
             output.push_str(&color.g.to_string());
             output.push(' ');
             output.push_str(&color.b.to_string());
+            if color.a != 255 {
+                output.push(' ');
+                output.push_str(&color.a.to_string());
+            }
             output.push('\n');
         }
 
@@ -142,13 +146,17 @@ impl Palette {
         let mut output = vec![];
         for (i, color) in colors.iter().enumerate() {
             let values: Vec<&str> = color.split_whitespace().collect();
-            if values.len() != 3 {
+            if values.len() != 3 && values.len() != 4 {
                 return Err(ParseError(ColorSplitting(i)));
             }
             let r = u8::from_str(values[0]).map_err(|_| ParseError(ColorNumbers(i)))?;
             let g = u8::from_str(values[1]).map_err(|_| ParseError(ColorNumbers(i)))?;
             let b = u8::from_str(values[2]).map_err(|_| ParseError(ColorNumbers(i)))?;
-            output.push(Color { r, g, b, a: 255 })
+            let mut a = 255;
+            if values.len() == 4 {
+                a = u8::from_str(values[3]).map_err(|_| ParseError(ColorNumbers(i)))?;
+            }
+            output.push(Color { r, g, b, a })
         }
         Ok(Palette::new(output))
     }

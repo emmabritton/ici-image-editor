@@ -39,6 +39,7 @@ pub struct PaletteDialog {
     red: TextField,
     green: TextField,
     blue: TextField,
+    alpha: TextField,
     current_color: Color,
     dialog_pos: Coord,
     file_path: Option<String>,
@@ -140,6 +141,15 @@ impl PaletteDialog {
             &[Numbers],
             &style.text_field,
         );
+        let alpha = TextField::new(
+            dialog_pos + (70, 130),
+            3,
+            Normal,
+            (None, None),
+            "",
+            &[Numbers],
+            &style.text_field,
+        );
 
         let save = Button::new(dialog_pos + (132, 98), "Save", Some(60), &style.button);
         let load = Button::new(dialog_pos + (132, 118), "Load", Some(60), &style.button);
@@ -167,6 +177,7 @@ impl PaletteDialog {
             red,
             green,
             blue,
+            alpha,
             current_color: WHITE,
         };
         dialog.update_selected_color_display();
@@ -188,6 +199,7 @@ impl PaletteDialog {
         self.red.set_content(&self.current_color.r.to_string());
         self.green.set_content(&self.current_color.g.to_string());
         self.blue.set_content(&self.current_color.b.to_string());
+        self.alpha.set_content(&self.current_color.a.to_string());
     }
 
     fn save_palette(&mut self, path: String) {
@@ -224,9 +236,26 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
         self.red.render(graphics, mouse_xy);
         self.green.render(graphics, mouse_xy);
         self.blue.render(graphics, mouse_xy);
+        self.alpha.render(graphics, mouse_xy);
         self.save.render(graphics, mouse_xy);
         self.load.render(graphics, mouse_xy);
 
+        graphics.draw_rect(
+            Rect::new_with_size(self.dialog_pos + (14,96), 16,16),
+            fill(LIGHT_GRAY)
+        );
+        graphics.draw_rect(
+            Rect::new_with_size(self.dialog_pos + (30,96), 16,16),
+            fill(DARK_GRAY)
+        );
+        graphics.draw_rect(
+            Rect::new_with_size(self.dialog_pos + (14,112), 16,16),
+            fill(DARK_GRAY)
+        );
+        graphics.draw_rect(
+            Rect::new_with_size(self.dialog_pos + (30,112), 16,16),
+            fill(LIGHT_GRAY)
+        );
         graphics.draw_rect(
             Rect::new_with_size(self.dialog_pos + (14, 96), 32, 32),
             fill(self.current_color),
@@ -245,6 +274,11 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
         graphics.draw_text(
             "B",
             TextPos::px(self.dialog_pos + (60, 120)),
+            (WHITE, Normal),
+        );
+        graphics.draw_text(
+            "A",
+            TextPos::px(self.dialog_pos + (60, 132)),
             (WHITE, Normal),
         );
 
@@ -281,10 +315,12 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
         self.red.on_key_press(key);
         self.green.on_key_press(key);
         self.blue.on_key_press(key);
+        self.alpha.on_key_press(key);
         let r = u8::from_str(self.red.content()).unwrap_or_default();
         let g = u8::from_str(self.green.content()).unwrap_or_default();
         let b = u8::from_str(self.blue.content()).unwrap_or_default();
-        self.current_color = Color { r, g, b, a: 255 };
+        let a = u8::from_str(self.alpha.content()).unwrap_or_default();
+        self.current_color = Color { r, g, b, a };
     }
 
     fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, _: &Vec<&VirtualKeyCode>) {
@@ -331,6 +367,7 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
         self.red.on_mouse_click(xy);
         self.green.on_mouse_click(xy);
         self.blue.on_mouse_click(xy);
+        self.alpha.on_mouse_click(xy);
         let start = self.dialog_pos + PAL_POS;
         if Rect::new_with_size(start, PAL_WIDTH, PAL_HEIGHT).contains(xy) {
             let x = (xy.x - start.x) / PAL_SPACED as isize;
@@ -353,6 +390,7 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
         self.red.update(timing);
         self.green.update(timing);
         self.blue.update(timing);
+        self.alpha.update(timing);
         self.result.clone()
     }
 
