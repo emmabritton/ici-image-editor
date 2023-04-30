@@ -1,6 +1,8 @@
 use crate::scenes::BACKGROUND;
 use crate::ui::canvas::{Canvas, Tool};
+use crate::ui::palette::PaletteView;
 use crate::{SceneName, SceneResult, SUR, WIDTH};
+use log::error;
 use pixels_graphics_lib::prelude::*;
 use pixels_graphics_lib::scenes::SceneUpdateResult::{Nothing, Pop};
 use pixels_graphics_lib::ui::prelude::TextFilter::Decimal;
@@ -18,6 +20,7 @@ const PADDING: isize = 4;
 const BUTTON_Y: isize = NAME_LINE_Y + PADDING;
 const FRAME_CONTROL: Coord = Coord::new(4, 200);
 const FRAME_CONTROL_SPACING: isize = 20;
+const PALETTE_HEIGHT: usize = 200;
 
 const TOOL_PENCIL: usize = 0;
 const TOOL_LINE: usize = 1;
@@ -37,7 +40,7 @@ pub struct Editor {
     save: Button,
     save_as: Button,
     close: Button,
-    palette: Button,
+    edit_palette: Button,
     speed: TextField,
     play_pause: IconButton,
     add_frame: IconButton,
@@ -48,6 +51,7 @@ pub struct Editor {
     file_name: String,
     canvas: Canvas,
     frames: Vec<IndexedImage>,
+    palette: PaletteView,
 }
 
 impl Editor {
@@ -74,7 +78,7 @@ impl Editor {
             None,
             &style.button,
         );
-        let palette = Button::new(
+        let edit_palette = Button::new(
             (PADDING, save.bounds().bottom_right().y + PADDING),
             "Palette",
             None,
@@ -177,8 +181,8 @@ impl Editor {
         ]);
         let mut canvas = Canvas::new(
             Coord::new(
-                palette.bounds().bottom_right().x + PADDING,
-                palette.bounds().top_left().y,
+                edit_palette.bounds().bottom_right().x + PADDING,
+                edit_palette.bounds().top_left().y,
             ),
             (200, 200),
         );
@@ -198,8 +202,17 @@ impl Editor {
             vec![0; image_size.0 as usize * image_size.1 as usize],
         )
         .unwrap()];
-        canvas.set_color(1);
+        canvas.set_color_index(1);
         canvas.set_image(frames[0].clone());
+        let mut palette = PaletteView::new(
+            Coord::new(
+                edit_palette.bounds().top_left().x,
+                edit_palette.bounds().bottom_right().y + PADDING,
+            ),
+            (edit_palette.bounds().width(), PALETTE_HEIGHT),
+        );
+        palette.set_palette(canvas.get_image().get_palette());
+        palette.set_color_index(1);
         Box::new(Self {
             result: Nothing,
             clear,
@@ -207,13 +220,14 @@ impl Editor {
             save,
             save_as,
             close,
-            palette,
+            edit_palette,
             speed,
             play_pause,
             add_frame,
             remove_frame,
             copy_frame,
             alert,
+            palette,
             pending_alert_action: None,
             file_name: String::from("untitled"),
             canvas,
@@ -244,6 +258,7 @@ impl Scene<SceneResult, SceneName> for Editor {
         self.clear.render(graphics, mouse_xy);
         self.close.render(graphics, mouse_xy);
         self.palette.render(graphics, mouse_xy);
+        self.edit_palette.render(graphics, mouse_xy);
         self.canvas.render(graphics, mouse_xy);
     }
 
@@ -282,7 +297,19 @@ impl Scene<SceneResult, SceneName> for Editor {
         }
         if self.save.on_mouse_click(xy) {}
         if self.save_as.on_mouse_click(xy) {}
-        if self.palette.on_mouse_click(xy) {}
+        if self.edit_palette.on_mouse_click(xy) {
+            let colors = self
+                .canvas
+                .get_image()
+                .get_palette()
+                .iter()
+                .map(|c| c.to_color())
+                .collect();
+            self.result = SceneUpdateResult::Push(false, SceneName::Palette(colors));
+        }
+        if self.palette.on_mouse_click(xy) {
+            self.canvas.set_color_index(self.palette.get_selected_idx());
+        }
         self.canvas.on_mouse_up(xy);
     }
 
@@ -299,6 +326,23 @@ impl Scene<SceneResult, SceneName> for Editor {
     }
 
     fn resuming(&mut self, result: Option<SceneResult>) {
+        if let Some(result) = result {
+            match result {
+                SceneResult::Palette(colors) => {
+                    let colors: Vec<IciColor> = colors.iter().map(|c| c.to_ici()).collect();
+                    self.palette.set_palette(&colors);
+                    self.palette.set_color_index(0);
+                    self.canvas.set_color_index(0);
+                    if let Err(e) = self.canvas.get_mut_image().set_palette(&colors) {
+                        panic!(
+                            "Failed to update palette: {} (please raise issue on github)",
+                            e
+                        );
+                    }
+                }
+                _ => {}
+            }
+        }
         self.result = Nothing;
     }
 }

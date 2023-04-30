@@ -139,8 +139,8 @@ impl NewImageDialog {
             } else if height.is_err() {
                 Err(String::from("Height is invalid"))
             } else {
-                let width = width.unwrap() as u8;
-                let height = height.unwrap() as u8;
+                let width = width.unwrap();
+                let height = height.unwrap();
                 Ok((width, height))
             }
         }

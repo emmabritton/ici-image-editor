@@ -241,20 +241,20 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
         self.load.render(graphics, mouse_xy);
 
         graphics.draw_rect(
-            Rect::new_with_size(self.dialog_pos + (14,96), 16,16),
-            fill(LIGHT_GRAY)
+            Rect::new_with_size(self.dialog_pos + (14, 96), 16, 16),
+            fill(LIGHT_GRAY),
         );
         graphics.draw_rect(
-            Rect::new_with_size(self.dialog_pos + (30,96), 16,16),
-            fill(DARK_GRAY)
+            Rect::new_with_size(self.dialog_pos + (30, 96), 16, 16),
+            fill(DARK_GRAY),
         );
         graphics.draw_rect(
-            Rect::new_with_size(self.dialog_pos + (14,112), 16,16),
-            fill(DARK_GRAY)
+            Rect::new_with_size(self.dialog_pos + (14, 112), 16, 16),
+            fill(DARK_GRAY),
         );
         graphics.draw_rect(
-            Rect::new_with_size(self.dialog_pos + (30,112), 16,16),
-            fill(LIGHT_GRAY)
+            Rect::new_with_size(self.dialog_pos + (30, 112), 16, 16),
+            fill(LIGHT_GRAY),
         );
         graphics.draw_rect(
             Rect::new_with_size(self.dialog_pos + (14, 96), 32, 32),

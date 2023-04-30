@@ -81,8 +81,20 @@ impl Palette {
 impl Default for Palette {
     fn default() -> Self {
         Palette::new(vec![
-            TRANSPARENT, WHITE, BLACK, LIGHT_GRAY, DARK_GRAY, RED, GREEN, BLUE, CYAN, MAGENTA, YELLOW, ORANGE,
-            PURPLE, BROWN,
+            TRANSPARENT,
+            WHITE,
+            BLACK,
+            LIGHT_GRAY,
+            DARK_GRAY,
+            RED,
+            GREEN,
+            BLUE,
+            CYAN,
+            MAGENTA,
+            YELLOW,
+            ORANGE,
+            PURPLE,
+            BROWN,
         ])
     }
 }

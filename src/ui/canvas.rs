@@ -49,24 +49,20 @@ impl Canvas {
         &self.image
     }
 
-    // pub fn on_mouse_click(&mut self, mouse_xy: Coord) {
-    //     if self.bounds.contains(mouse_xy) {
-    //         let (x, y) = self.mouse_to_image(mouse_xy);
-    //         match self.image.get_pixel_index(x, y) {
-    //             Ok(px_idx) => self.image.set_pixel(px_idx, self.selected_color_idx).expect("Canvas palette data corrupt?"),
-    //             Err(e) =>
-    //                 error!("Attempted to draw outside canvas: {e:?} at mouse {mouse_xy:?}, px ({x},{y}), bounds: {},{}", self.bounds.width(), self.bounds.height())
-    //         }
-    //     }
-    // }
+    pub fn get_mut_image(&mut self) -> &mut IndexedImage {
+        &mut self.image
+    }
 
     pub fn on_mouse_down(&mut self, mouse_xy: Coord) {
         if self.bounds.contains(mouse_xy) {
             let (x, y) = self.mouse_to_image(mouse_xy);
             if self.image.get_pixel_index(x, y).is_ok() {
                 if self.tool == Tool::Pencil {
-                    if let Err(e) = self.image.get_pixel_index(x, y)
-                        .and_then(|idx| self.image.set_pixel(idx, self.selected_color_idx)) {
+                    if let Err(e) = self
+                        .image
+                        .get_pixel_index(x, y)
+                        .and_then(|idx| self.image.set_pixel(idx, self.selected_color_idx))
+                    {
                         error!("Error drawing {:?} at {x},{y}: {e:?}", self.tool);
                     }
                 } else if self.first_click_at.is_none() {
@@ -83,7 +79,7 @@ impl Canvas {
                 (Tool::Line, Some(start)) => self.line(start, (x, y)),
                 (Tool::Rect, Some(start)) => self.rect(start, (x, y)),
                 (Tool::Fill, Some(start)) => self.fill(start),
-                _ => Ok(())
+                _ => Ok(()),
             };
             if let Err(e) = result {
                 error!("Error drawing {:?} at {x},{y}: {e:?}", self.tool);
@@ -102,7 +98,6 @@ impl Canvas {
 
         Ok(())
     }
-
 
     fn rect(&mut self, start: (u8, u8), end: (u8, u8)) -> Result<(), IndexedImageError> {
         let top_left = ((start.0).min(end.0), (start.1).min(end.1));
@@ -129,13 +124,19 @@ impl Canvas {
         let width = self.image.width();
         let height = self.image.height();
         let palette = self.image.get_palette().to_vec();
-        self.image = IndexedImage::new(width, height, palette, vec![0; width as usize * height as usize]).unwrap()
+        self.image = IndexedImage::new(
+            width,
+            height,
+            palette,
+            vec![0; width as usize * height as usize],
+        )
+        .unwrap()
     }
 
     fn fill(&mut self, start: (u8, u8)) -> Result<(), IndexedImageError> {
         let i = self.image.get_pixel_index(start.0, start.1)?;
         let replace_color = self.image.get_pixel(i)?;
-        let to_replace = self.get_valid_neighbours(FnvHashSet::default(),start, replace_color)?;
+        let to_replace = self.get_valid_neighbours(FnvHashSet::default(), start, replace_color)?;
 
         for idx in to_replace {
             self.image.set_pixel(idx, self.selected_color_idx)?;
@@ -144,18 +145,32 @@ impl Canvas {
         Ok(())
     }
 
-    fn get_valid_neighbours(&self, set: FnvHashSet<usize>, start: (u8, u8), replace_color: u8) -> Result<FnvHashSet<usize>, IndexedImageError> {
+    fn get_valid_neighbours(
+        &self,
+        set: FnvHashSet<usize>,
+        start: (u8, u8),
+        replace_color: u8,
+    ) -> Result<FnvHashSet<usize>, IndexedImageError> {
         let start = (start.0 as isize, start.1 as isize);
-        let set = self.check_and_set(set,start, replace_color, (-1, 0))?;
-        let set = self.check_and_set(set,start, replace_color, (1, 0))?;
-        let set = self.check_and_set(set,start, replace_color, (0, -1))?;
-        self.check_and_set(set,start, replace_color, (0, 1))
+        let set = self.check_and_set(set, start, replace_color, (-1, 0))?;
+        let set = self.check_and_set(set, start, replace_color, (1, 0))?;
+        let set = self.check_and_set(set, start, replace_color, (0, -1))?;
+        self.check_and_set(set, start, replace_color, (0, 1))
     }
 
-    fn check_and_set(&self, mut set: FnvHashSet<usize>, start: (isize, isize), replace_color: u8, diff:(isize, isize)) -> Result<FnvHashSet<usize>, IndexedImageError> {
+    fn check_and_set(
+        &self,
+        mut set: FnvHashSet<usize>,
+        start: (isize, isize),
+        replace_color: u8,
+        diff: (isize, isize),
+    ) -> Result<FnvHashSet<usize>, IndexedImageError> {
         let target = (start.0 + diff.0, start.1 + diff.1);
-        if target.0 >= 0 && target.0 < self.image.width() as isize &&
-            target.1 >= 0 && target.1 < self.image.height() as isize {
+        if target.0 >= 0
+            && target.0 < self.image.width() as isize
+            && target.1 >= 0
+            && target.1 < self.image.height() as isize
+        {
             let start = (target.0 as u8, target.1 as u8);
             let i = self.image.get_pixel_index(start.0, start.1)?;
             if !set.contains(&i) {
@@ -177,7 +192,7 @@ impl Canvas {
         self.trans_background_colors = trans_background_colors;
     }
 
-    pub fn set_color(&mut self, idx: u8) {
+    pub fn set_color_index(&mut self, idx: u8) {
         if let Ok(color) = self.image.get_color(idx) {
             self.cursor_color = color.to_color();
             self.selected_color_idx = idx;
@@ -202,7 +217,6 @@ impl Canvas {
 }
 
 impl Canvas {
-
     fn draw_mouse_highlight(&self, graphics: &mut Graphics, mouse_xy: Coord) {
         if self.bounds.contains(mouse_xy) {
             let xy = self.mouse_to_image(mouse_xy);
@@ -313,7 +327,7 @@ impl UiElement for Canvas {
             match (self.tool, self.first_click_at) {
                 (Tool::Line, Some(start)) => self.temp_line(graphics, start, mouse_xy),
                 (Tool::Rect, Some(start)) => self.temp_rect(graphics, start, mouse_xy),
-                _ => self.draw_mouse_highlight(graphics, mouse_xy)
+                _ => self.draw_mouse_highlight(graphics, mouse_xy),
             }
         }
     }

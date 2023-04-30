@@ -35,7 +35,7 @@ fn main() -> Result<()> {
     let switcher: SceneSwitcher<SceneResult, SceneName> = |style, list, name| {
         let style = style;
         match name {
-            SceneName::Editor(details) => list.push(Editor::new(WIDTH, HEIGHT, details, &style)), //list.push(SavePaletteDataDialog::new(WIDTH, HEIGHT, &style.alert, &style.dialog)),
+            SceneName::Editor(details) => list.push(Editor::new(WIDTH, HEIGHT, details, style)),
             SceneName::NewImage => list.push(NewImageDialog::new(WIDTH, HEIGHT, &style.dialog)),
             SceneName::SaveFile(ext, filepath) => list.push(SaveFileDialog::new(
                 filepath,
