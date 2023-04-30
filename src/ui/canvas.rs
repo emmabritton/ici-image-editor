@@ -27,7 +27,7 @@ impl Canvas {
     pub fn new(xy: Coord, (width, height): (usize, usize)) -> Self {
         Self {
             bounds: Rect::new_with_size(xy, width, height),
-            inner_bounds: Rect::new_with_size(xy, 0,0),
+            inner_bounds: Rect::new_with_size(xy, 0, 0),
             image: IndexedImage::new(1, 1, vec![IciColor::transparent()], vec![0]).unwrap(),
             screen_px_per_image_px: 1,
             trans_background_colors: (LIGHT_GRAY, DARK_GRAY),
@@ -45,17 +45,19 @@ impl Canvas {
         let side = self.image.width().max(self.image.height()) as usize;
         let length = self.bounds.width().min(self.bounds.height());
         self.screen_px_per_image_px = length / side;
-        self.inner_bounds = Rect::new_with_size((0,0), self.image.width() as usize * self.screen_px_per_image_px, self.image.height() as usize * self.screen_px_per_image_px);
+        self.inner_bounds = Rect::new_with_size(
+            (0, 0),
+            self.image.width() as usize * self.screen_px_per_image_px,
+            self.image.height() as usize * self.screen_px_per_image_px,
+        );
         let max_width = self.bounds.width() / 2;
         let max_height = self.bounds.height() / 2;
         let image_width = self.inner_bounds.width() / 2;
         let image_height = self.inner_bounds.height() / 2;
-        self.inner_bounds=self.inner_bounds.move_to(
-            (
-                self.bounds.top_left().x + ((max_width - image_width) as isize),
-                self.bounds.top_left().y + ((max_height - image_height) as isize)
-            )
-        );
+        self.inner_bounds = self.inner_bounds.move_to((
+            self.bounds.top_left().x + ((max_width - image_width) as isize),
+            self.bounds.top_left().y + ((max_height - image_height) as isize),
+        ));
     }
 
     pub fn get_image(&self) -> &IndexedImage {
@@ -238,7 +240,8 @@ impl Canvas {
     }
 
     fn draw_cursor_on_image(&self, graphics: &mut Graphics, xy: (u8, u8)) {
-        let top_left = (Coord::from(xy) * self.screen_px_per_image_px) + self.inner_bounds.top_left();
+        let top_left =
+            (Coord::from(xy) * self.screen_px_per_image_px) + self.inner_bounds.top_left();
         graphics.draw_rect(
             Rect::new_with_size(
                 top_left,
@@ -332,7 +335,9 @@ impl UiElement for Canvas {
                 self.draw_img_px(graphics, img_x, img_y, trans_color);
                 swap_color(&mut trans_color);
             }
-            swap_color(&mut trans_color);
+            if self.image.width() % 2 == 0 {
+                swap_color(&mut trans_color);
+            }
         }
 
         graphics.set_translate(orig_trans);
