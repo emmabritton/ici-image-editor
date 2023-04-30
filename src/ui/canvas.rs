@@ -13,6 +13,7 @@ pub enum Tool {
 #[derive(Debug)]
 pub struct Canvas {
     bounds: Rect,
+    inner_bounds: Rect,
     image: IndexedImage,
     screen_px_per_image_px: usize,
     trans_background_colors: (Color, Color),
@@ -26,6 +27,7 @@ impl Canvas {
     pub fn new(xy: Coord, (width, height): (usize, usize)) -> Self {
         Self {
             bounds: Rect::new_with_size(xy, width, height),
+            inner_bounds: Rect::new_with_size(xy, 0,0),
             image: IndexedImage::new(1, 1, vec![IciColor::transparent()], vec![0]).unwrap(),
             screen_px_per_image_px: 1,
             trans_background_colors: (LIGHT_GRAY, DARK_GRAY),
@@ -41,8 +43,19 @@ impl Canvas {
     pub fn set_image(&mut self, image: IndexedImage) {
         self.image = image;
         let side = self.image.width().max(self.image.height()) as usize;
-        let length = self.bounds.width().max(self.bounds.height());
+        let length = self.bounds.width().min(self.bounds.height());
         self.screen_px_per_image_px = length / side;
+        self.inner_bounds = Rect::new_with_size((0,0), self.image.width() as usize * self.screen_px_per_image_px, self.image.height() as usize * self.screen_px_per_image_px);
+        let max_width = self.bounds.width() / 2;
+        let max_height = self.bounds.height() / 2;
+        let image_width = self.inner_bounds.width() / 2;
+        let image_height = self.inner_bounds.height() / 2;
+        self.inner_bounds=self.inner_bounds.move_to(
+            (
+                self.bounds.top_left().x + ((max_width - image_width) as isize),
+                self.bounds.top_left().y + ((max_height - image_height) as isize)
+            )
+        );
     }
 
     pub fn get_image(&self) -> &IndexedImage {
@@ -54,7 +67,7 @@ impl Canvas {
     }
 
     pub fn on_mouse_down(&mut self, mouse_xy: Coord) {
-        if self.bounds.contains(mouse_xy) {
+        if self.inner_bounds.contains(mouse_xy) {
             let (x, y) = self.mouse_to_image(mouse_xy);
             if self.image.get_pixel_index(x, y).is_ok() {
                 if self.tool == Tool::Pencil {
@@ -73,7 +86,7 @@ impl Canvas {
     }
 
     pub fn on_mouse_up(&mut self, mouse_xy: Coord) {
-        if self.bounds.contains(mouse_xy) {
+        if self.inner_bounds.contains(mouse_xy) {
             let (x, y) = self.mouse_to_image(mouse_xy);
             let result = match (self.tool, self.first_click_at) {
                 (Tool::Line, Some(start)) => self.line(start, (x, y)),
@@ -200,7 +213,7 @@ impl Canvas {
     }
 
     fn mouse_to_image(&self, mouse_xy: Coord) -> (u8, u8) {
-        let offset_xy = mouse_xy - self.bounds.top_left();
+        let offset_xy = mouse_xy - self.inner_bounds.top_left();
         let img_coord = offset_xy / self.screen_px_per_image_px;
         let x = img_coord.x.min(255).max(0) as u8;
         let y = img_coord.y.min(255).max(0) as u8;
@@ -218,14 +231,14 @@ impl Canvas {
 
 impl Canvas {
     fn draw_mouse_highlight(&self, graphics: &mut Graphics, mouse_xy: Coord) {
-        if self.bounds.contains(mouse_xy) {
+        if self.inner_bounds.contains(mouse_xy) {
             let xy = self.mouse_to_image(mouse_xy);
             self.draw_cursor_on_image(graphics, xy);
         }
     }
 
     fn draw_cursor_on_image(&self, graphics: &mut Graphics, xy: (u8, u8)) {
-        let top_left = (Coord::from(xy) * self.screen_px_per_image_px) + self.bounds.top_left();
+        let top_left = (Coord::from(xy) * self.screen_px_per_image_px) + self.inner_bounds.top_left();
         graphics.draw_rect(
             Rect::new_with_size(
                 top_left,
@@ -312,7 +325,7 @@ impl UiElement for Canvas {
         };
 
         let orig_trans = graphics.get_translate();
-        graphics.set_translate(self.bounds.top_left());
+        graphics.set_translate(self.inner_bounds.top_left());
 
         for img_y in 0..self.image.height() {
             for img_x in 0..self.image.width() {
@@ -323,7 +336,7 @@ impl UiElement for Canvas {
         }
 
         graphics.set_translate(orig_trans);
-        if self.bounds.contains(mouse_xy) {
+        if self.inner_bounds.contains(mouse_xy) {
             match (self.tool, self.first_click_at) {
                 (Tool::Line, Some(start)) => self.temp_line(graphics, start, mouse_xy),
                 (Tool::Rect, Some(start)) => self.temp_rect(graphics, start, mouse_xy),

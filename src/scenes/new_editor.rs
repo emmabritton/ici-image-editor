@@ -185,7 +185,7 @@ impl Editor {
                 edit_palette.bounds().bottom_right().x + PADDING,
                 edit_palette.bounds().top_left().y,
             ),
-            (200, 200),
+            (210, 200),
         );
         add_frame.set_state(ElementState::Disabled);
         remove_frame.set_state(ElementState::Disabled);
