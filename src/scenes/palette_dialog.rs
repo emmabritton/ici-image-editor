@@ -210,13 +210,13 @@ impl PaletteDialog {
                 colors: self.colors.clone(),
             }
             .to_file_contents();
-            fs::write(&path, output).expect("Writing palette to disk");
+            fs::write(path, output).expect("Writing palette to disk");
         }
     }
 
     fn load_palette(&mut self) {
         if let Some(path) = &self.file_path {
-            let input = fs::read_to_string(&path).expect("Reading palette from disk");
+            let input = fs::read_to_string(path).expect("Reading palette from disk");
             let palette = Palette::from_file_contents(&input).expect("Decoding palette");
             self.colors = palette.colors;
         }

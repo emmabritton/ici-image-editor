@@ -1,5 +1,5 @@
 use crate::scenes::new_editor::EditorDetails;
-use crate::scenes::{BACKGROUND, file_dialog};
+use crate::scenes::{file_dialog, BACKGROUND};
 use crate::SceneUpdateResult::{Nothing, Push};
 use crate::{Scene, SceneName, SceneResult, SUR};
 use pixels_graphics_lib::buffer_graphics_lib::image::Image;
@@ -77,7 +77,10 @@ impl Scene<SceneResult, SceneName> for Menu {
         }
         if self.load_button.on_mouse_click(xy) {
             if let Some(path) = file_dialog(&None, &[("IndexedImage", "ici")]).pick_file() {
-                self.result = Push(false, SceneName::Editor(EditorDetails::Open(path.to_string_lossy().to_string())));
+                self.result = Push(
+                    false,
+                    SceneName::Editor(EditorDetails::Open(path.to_string_lossy().to_string())),
+                );
             }
         }
     }

@@ -202,14 +202,15 @@ impl Editor {
         let frames = match details {
             EditorDetails::Open(path) => {
                 let bytes = fs::read(path).expect("Reading image from file");
-                let (image, pal) = IndexedImage::from_file_contents(&bytes).expect("Reading image data");
+                let (image, pal) =
+                    IndexedImage::from_file_contents(&bytes).expect("Reading image data");
                 if pal != FilePalette::Colors {
                     panic!("Currently {pal:?} isn't supported");
                 }
                 vec![image]
             }
             EditorDetails::New(w, h) => {
-                 vec![IndexedImage::new(
+                vec![IndexedImage::new(
                     w,
                     h,
                     Palette::default()
@@ -219,7 +220,7 @@ impl Editor {
                         .collect(),
                     vec![0; w as usize * h as usize],
                 )
-                    .unwrap()]
+                .unwrap()]
             }
         };
 
