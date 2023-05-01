@@ -1,17 +1,14 @@
-use crate::scenes::editor::EditorDetails;
-use crate::scenes::BACKGROUND;
-use crate::ui::button::Button;
-use crate::ui::Ui;
-use crate::SceneName::Editor;
+use crate::scenes::new_editor::EditorDetails;
+use crate::scenes::{file_dialog, BACKGROUND};
 use crate::SceneUpdateResult::{Nothing, Push};
 use crate::{Scene, SceneName, SceneResult, SUR};
 use pixels_graphics_lib::buffer_graphics_lib::image::Image;
 use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
-use pixels_graphics_lib::buffer_graphics_lib::text::pos::TextPos;
 use pixels_graphics_lib::buffer_graphics_lib::text::wrapping::WrappingStrategy;
 use pixels_graphics_lib::buffer_graphics_lib::text::TextSize::Large;
 use pixels_graphics_lib::buffer_graphics_lib::Graphics;
-use pixels_graphics_lib::prelude::{Coord, VirtualKeyCode};
+use pixels_graphics_lib::prelude::button::Button;
+use pixels_graphics_lib::prelude::*;
 use pixels_graphics_lib::ui::styles::ButtonStyle;
 use pixels_graphics_lib::Timing;
 
@@ -43,7 +40,7 @@ impl Menu {
         let logo = make_image(60, 40, |graphics| {
             graphics.draw_text(
                 "ici Image Editor",
-                TextPos::Px(0, 0),
+                Px(0, 0),
                 (WHITE, Large, WrappingStrategy::SpaceBeforeCol(7)),
             );
         })
@@ -69,14 +66,22 @@ impl Scene<SceneResult, SceneName> for Menu {
         self.load_button.render(graphics, mouse_xy);
     }
 
-    fn on_key_press(&mut self, _: VirtualKeyCode, _: &Vec<&VirtualKeyCode>) {}
+    fn on_key_up(&mut self, _: VirtualKeyCode, _: &Vec<&VirtualKeyCode>) {}
 
-    fn on_mouse_click(&mut self, xy: Coord, _: &Vec<&VirtualKeyCode>) {
+    fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, _: &Vec<&VirtualKeyCode>) {
+        if button != MouseButton::Left {
+            return;
+        }
         if self.new_button.on_mouse_click(xy) {
             self.result = Push(false, SceneName::NewImage);
         }
         if self.load_button.on_mouse_click(xy) {
-            self.result = Push(false, SceneName::LoadFile(String::from("ici")));
+            if let Some(path) = file_dialog(&None, &[("IndexedImage", "ici")]).pick_file() {
+                self.result = Push(
+                    false,
+                    SceneName::Editor(EditorDetails::Open(path.to_string_lossy().to_string())),
+                );
+            }
         }
     }
 
@@ -85,14 +90,7 @@ impl Scene<SceneResult, SceneName> for Menu {
     }
 
     fn resuming(&mut self, result: Option<SceneResult>) {
-        if let Some(result) = result {
-            self.result = match result {
-                SceneResult::LoadFilePath(path) => Push(false, Editor(EditorDetails::Open(path))),
-                _ => Nothing,
-            }
-        } else {
-            self.result = Nothing;
-        }
+        self.result = Nothing;
     }
 
     fn is_dialog(&self) -> bool {
