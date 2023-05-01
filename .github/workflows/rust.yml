@@ -50,7 +50,7 @@ jobs:
           components: clippy
 
       - name: Install linux libs
-        run: sudo apt-get update; sudo apt-get install --no-install-recommends pkg-config build-essential libgtk3.0-dev
+        run: sudo apt-get update; sudo apt-get install --no-install-recommends pkg-config build-essential libgtk-3-dev
 
       - name: Run cargo clippy --all-targets -- -D clippy::all
         run: cargo clippy --all-targets -- -D clippy::all
@@ -70,7 +70,7 @@ jobs:
           override: true
 
       - name: Install linux libs
-        run: sudo apt-get update; sudo apt-get install --no-install-recommends pkg-config build-essential libgtk3.0-dev
+        run: sudo apt-get update; sudo apt-get install --no-install-recommends pkg-config build-essential libgtk-3-dev
 
       - name: Run cargo check
         run: cargo test
