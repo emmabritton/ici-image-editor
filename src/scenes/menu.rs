@@ -89,7 +89,7 @@ impl Scene<SceneResult, SceneName> for Menu {
         self.result.clone()
     }
 
-    fn resuming(&mut self, result: Option<SceneResult>) {
+    fn resuming(&mut self, _result: Option<SceneResult>) {
         self.result = Nothing;
     }
 

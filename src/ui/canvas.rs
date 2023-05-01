@@ -199,10 +199,12 @@ impl Canvas {
         Ok(set)
     }
 
+    #[allow(unused)] //will be one day
     pub fn trans_background_colors(&self) -> (Color, Color) {
         self.trans_background_colors
     }
 
+    #[allow(unused)] //will be one day
     pub fn set_trans_background_colors(&mut self, trans_background_colors: (Color, Color)) {
         self.trans_background_colors = trans_background_colors;
     }
@@ -220,10 +222,6 @@ impl Canvas {
         let x = img_coord.x.min(255).max(0) as u8;
         let y = img_coord.y.min(255).max(0) as u8;
         (x, y)
-    }
-
-    pub fn tool(&self) -> Tool {
-        self.tool
     }
 
     pub fn set_tool(&mut self, tool: Tool) {

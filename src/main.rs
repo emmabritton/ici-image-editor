@@ -11,8 +11,7 @@ use color_eyre::Result;
 use log::LevelFilter;
 use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
 use pixels_graphics_lib::prefs::WindowPreferences;
-use pixels_graphics_lib::prelude::load_file_dialog::LoadFileDialog;
-use pixels_graphics_lib::prelude::save_file_dialog::SaveFileDialog;
+
 use pixels_graphics_lib::prelude::*;
 use std::fmt::Debug;
 
@@ -69,11 +68,13 @@ enum SceneName {
     Editor(EditorDetails),
     NewImage,
     Palette(Vec<Color>),
+    #[allow(unused)] //will be one day
     SavePaletteData,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 enum SceneResult {
+    #[allow(unused)] //will be one day
     SavePaletteData(FilePalette),
     Palette(Vec<Color>),
 }

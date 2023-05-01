@@ -33,10 +33,6 @@ impl PaletteView {
         self.selected = idx;
     }
 
-    pub fn get_selected_color(&self) -> IciColor {
-        self.colors[self.selected as usize]
-    }
-
     pub fn get_selected_idx(&self) -> u8 {
         self.selected
     }
@@ -64,7 +60,7 @@ impl UiElement for PaletteView {
         &self.bounds
     }
 
-    fn render(&self, graphics: &mut Graphics, mouse_xy: Coord) {
+    fn render(&self, graphics: &mut Graphics, _mouse_xy: Coord) {
         let orig_trans = graphics.get_translate();
         graphics.set_translate(self.bounds.top_left());
 

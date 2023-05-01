@@ -2,14 +2,14 @@ use crate::palettes::Palette;
 use crate::scenes::{dialog_background, file_dialog};
 use crate::SceneUpdateResult::{Nothing, Pop};
 use crate::{Scene, SceneName, SceneResult, SUR};
-use directories::UserDirs;
+
 use pixels_graphics_lib::prelude::*;
-use pixels_graphics_lib::scenes::SceneUpdateResult::Push;
+
 use pixels_graphics_lib::ui::prelude::TextFilter::Numbers;
 use pixels_graphics_lib::ui::prelude::*;
-use rfd::FileDialog;
+
 use std::fs;
-use std::path::PathBuf;
+
 use std::str::FromStr;
 
 const PAL_POS: Coord = Coord::new(5, 48);
@@ -404,7 +404,7 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
         self.result.clone()
     }
 
-    fn resuming(&mut self, result: Option<SceneResult>) {
+    fn resuming(&mut self, _result: Option<SceneResult>) {
         self.result = Nothing;
     }
 

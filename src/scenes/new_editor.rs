@@ -3,16 +3,17 @@ use crate::scenes::{file_dialog, BACKGROUND};
 use crate::ui::canvas::{Canvas, Tool};
 use crate::ui::palette::PaletteView;
 use crate::{SceneName, SceneResult, SUR, WIDTH};
-use directories::UserDirs;
+
 use log::error;
 use pixels_graphics_lib::prelude::*;
 use pixels_graphics_lib::scenes::SceneUpdateResult::{Nothing, Pop};
 use pixels_graphics_lib::ui::prelude::TextFilter::Decimal;
 use pixels_graphics_lib::ui::prelude::*;
-use rfd::FileDialog;
-use std::fs;
-use std::path::{Path, PathBuf};
 
+use std::fs;
+use std::path::PathBuf;
+
+#[allow(unused)] //will be soon
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 enum AlertAction {
     Clear,
@@ -50,14 +51,21 @@ pub struct Editor {
     close: Button,
     edit_palette: Button,
     speed: TextField,
+    #[allow(unused)] //will be one day
     play_pause: IconButton,
+    #[allow(unused)] //will be one day
     add_frame: IconButton,
+    #[allow(unused)] //will be one day
     remove_frame: IconButton,
+    #[allow(unused)] //will be one day
     copy_frame: IconButton,
+    #[allow(unused)] //will be soon
     alert: Alert,
+    #[allow(unused)] //will be soon
     pending_alert_action: Option<AlertAction>,
     filepath: Option<String>,
     canvas: Canvas,
+    #[allow(unused)] //will be one day
     frames: Vec<IndexedImage>,
     palette: PaletteView,
 }
@@ -378,7 +386,7 @@ impl Scene<SceneResult, SceneName> for Editor {
         self.canvas.on_mouse_up(xy);
     }
 
-    fn on_scroll(&mut self, xy: Coord, y_diff: isize, x_diff: isize, _: &Vec<&VirtualKeyCode>) {}
+    fn on_scroll(&mut self, _xy: Coord, _y_diff: isize, _x_diff: isize, _: &Vec<&VirtualKeyCode>) {}
 
     fn update(
         &mut self,
@@ -391,21 +399,16 @@ impl Scene<SceneResult, SceneName> for Editor {
     }
 
     fn resuming(&mut self, result: Option<SceneResult>) {
-        if let Some(result) = result {
-            match result {
-                SceneResult::Palette(colors) => {
-                    let colors: Vec<IciColor> = colors.iter().map(|c| c.to_ici()).collect();
-                    self.palette.set_palette(&colors);
-                    self.palette.set_color_index(0);
-                    self.canvas.set_color_index(0);
-                    if let Err(e) = self.canvas.get_mut_image().set_palette(&colors) {
-                        panic!(
-                            "Failed to update palette: {} (please raise issue on github)",
-                            e
-                        );
-                    }
-                }
-                _ => {}
+        if let Some(SceneResult::Palette(colors)) = result {
+            let colors: Vec<IciColor> = colors.iter().map(|c| c.to_ici()).collect();
+            self.palette.set_palette(&colors);
+            self.palette.set_color_index(0);
+            self.canvas.set_color_index(0);
+            if let Err(e) = self.canvas.get_mut_image().set_palette(&colors) {
+                panic!(
+                    "Failed to update palette: {} (please raise issue on github)",
+                    e
+                );
             }
         }
         self.result = Nothing;
