@@ -1,13 +1,17 @@
 use crate::palettes::Palette;
-use crate::scenes::BACKGROUND;
+use crate::scenes::{file_dialog, BACKGROUND};
 use crate::ui::canvas::{Canvas, Tool};
 use crate::ui::palette::PaletteView;
 use crate::{SceneName, SceneResult, SUR, WIDTH};
+use directories::UserDirs;
 use log::error;
 use pixels_graphics_lib::prelude::*;
 use pixels_graphics_lib::scenes::SceneUpdateResult::{Nothing, Pop};
 use pixels_graphics_lib::ui::prelude::TextFilter::Decimal;
 use pixels_graphics_lib::ui::prelude::*;
+use rfd::FileDialog;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 enum AlertAction {
@@ -27,6 +31,9 @@ const TOOL_PENCIL: usize = 0;
 const TOOL_LINE: usize = 1;
 const TOOL_RECT: usize = 2;
 const TOOL_FILL: usize = 3;
+
+const UNTITLED: &str = "untitled";
+const CORRUPT: &str = "???";
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum EditorDetails {
@@ -49,7 +56,7 @@ pub struct Editor {
     copy_frame: IconButton,
     alert: Alert,
     pending_alert_action: Option<AlertAction>,
-    file_name: String,
+    filepath: Option<String>,
     canvas: Canvas,
     frames: Vec<IndexedImage>,
     palette: PaletteView,
@@ -192,21 +199,30 @@ impl Editor {
         copy_frame.set_state(ElementState::Disabled);
         play_pause.set_state(ElementState::Disabled);
         speed.set_state(ElementState::Disabled);
-        let mut image_size = (8, 8);
-        if let EditorDetails::New(w, h) = details {
-            image_size = (w, h);
-        }
-        let frames = vec![IndexedImage::new(
-            image_size.0,
-            image_size.1,
-            Palette::default()
-                .colors
-                .iter()
-                .map(|c| c.to_ici())
-                .collect(),
-            vec![0; image_size.0 as usize * image_size.1 as usize],
-        )
-        .unwrap()];
+        let frames = match details {
+            EditorDetails::Open(path) => {
+                let bytes = fs::read(path).expect("Reading image from file");
+                let (image, pal) = IndexedImage::from_file_contents(&bytes).expect("Reading image data");
+                if pal != FilePalette::Colors {
+                    panic!("Currently {pal:?} isn't supported");
+                }
+                vec![image]
+            }
+            EditorDetails::New(w, h) => {
+                 vec![IndexedImage::new(
+                    w,
+                    h,
+                    Palette::default()
+                        .colors
+                        .iter()
+                        .map(|c| c.to_ici())
+                        .collect(),
+                    vec![0; w as usize * h as usize],
+                )
+                    .unwrap()]
+            }
+        };
+
         canvas.set_color_index(1);
         canvas.set_image(frames[0].clone());
         let mut palette = PaletteView::new(
@@ -234,10 +250,30 @@ impl Editor {
             alert,
             palette,
             pending_alert_action: None,
-            file_name: String::from("untitled"),
+            filepath: None,
             canvas,
             frames,
         })
+    }
+
+    fn open_save_as(&mut self) {
+        if let Some(path) = file_dialog(&self.filepath, &[("IndexedImage", "ici")]).save_file() {
+            self.filepath = Some(path.to_string_lossy().to_string());
+            self.save_file();
+        }
+    }
+
+    fn save_file(&self) {
+        if let Some(filepath) = &self.filepath {
+            let bytes = self
+                .canvas
+                .get_image()
+                .to_file_contents(&FilePalette::Colors)
+                .expect("Unable to save file (converting)");
+            fs::write(filepath, bytes).expect("Unable to save file (writing)");
+        } else {
+            error!("save_file called but no filepath set")
+        }
     }
 }
 
@@ -245,8 +281,23 @@ impl Scene<SceneResult, SceneName> for Editor {
     fn render(&self, graphics: &mut Graphics, mouse_xy: Coord) {
         graphics.clear(BACKGROUND);
 
+        let name = if let Some(path) = &self.filepath {
+            PathBuf::from(path)
+                .file_name()
+                .map(|s| s.to_string_lossy().to_string())
+                .map(|s| {
+                    if s.ends_with(".ici") || s.ends_with(".ica") {
+                        s.chars().take(s.chars().count() - 4).collect()
+                    } else {
+                        s
+                    }
+                })
+                .unwrap_or(CORRUPT.to_string())
+        } else {
+            UNTITLED.to_string()
+        };
         graphics.draw_text(
-            &self.file_name,
+            &name,
             TextPos::px(NAME),
             (WHITE, Normal, WrappingStrategy::Ellipsis(38)),
         );
@@ -300,8 +351,16 @@ impl Scene<SceneResult, SceneName> for Editor {
         if self.clear.on_mouse_click(xy) {
             self.canvas.clear();
         }
-        if self.save.on_mouse_click(xy) {}
-        if self.save_as.on_mouse_click(xy) {}
+        if self.save.on_mouse_click(xy) {
+            if self.filepath.is_some() {
+                self.save_file();
+            } else {
+                self.open_save_as();
+            }
+        }
+        if self.save_as.on_mouse_click(xy) {
+            self.open_save_as();
+        }
         if self.edit_palette.on_mouse_click(xy) {
             let colors = self
                 .canvas

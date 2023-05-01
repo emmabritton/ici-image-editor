@@ -10,7 +10,7 @@ readme = "README.md"
 homepage = "https://github.com/raybritton/ici-image-editor"
 
 [dependencies]
-pixels-graphics-lib = "0.10.6"
+pixels-graphics-lib = "0.10.7"
 color-eyre = "0.6.2"
 log = "0.4.17"
 directories = "5.0.0"
@@ -18,3 +18,4 @@ env_logger = "0.10.0"
 ron = "0.8"
 serde = { version = "1", features = ["derive"] }
 fnv = "1.0.3"
+rfd = "0.11.3"

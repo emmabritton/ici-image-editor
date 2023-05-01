@@ -1,13 +1,15 @@
 use crate::palettes::Palette;
-use crate::scenes::dialog_background;
-use crate::SceneName::{LoadFile, SaveFile};
+use crate::scenes::{dialog_background, file_dialog};
 use crate::SceneUpdateResult::{Nothing, Pop};
 use crate::{Scene, SceneName, SceneResult, SUR};
+use directories::UserDirs;
 use pixels_graphics_lib::prelude::*;
 use pixels_graphics_lib::scenes::SceneUpdateResult::Push;
 use pixels_graphics_lib::ui::prelude::TextFilter::Numbers;
 use pixels_graphics_lib::ui::prelude::*;
+use rfd::FileDialog;
 use std::fs;
+use std::path::PathBuf;
 use std::str::FromStr;
 
 const PAL_POS: Coord = Coord::new(5, 48);
@@ -202,20 +204,22 @@ impl PaletteDialog {
         self.alpha.set_content(&self.current_color.a.to_string());
     }
 
-    fn save_palette(&mut self, path: String) {
-        let output = Palette {
-            colors: self.colors.clone(),
+    fn save_palette(&mut self) {
+        if let Some(path) = &self.file_path {
+            let output = Palette {
+                colors: self.colors.clone(),
+            }
+            .to_file_contents();
+            fs::write(&path, output).expect("Writing palette to disk");
         }
-        .to_file_contents();
-        fs::write(&path, output).expect("Writing palette to disk");
-        self.file_path = Some(path);
     }
 
-    fn load_palette(&mut self, path: String) {
-        let input = fs::read_to_string(&path).expect("Reading palette from disk");
-        let palette = Palette::from_file_contents(&input).expect("Decoding palette");
-        self.colors = palette.colors;
-        self.file_path = Some(path);
+    fn load_palette(&mut self) {
+        if let Some(path) = &self.file_path {
+            let input = fs::read_to_string(&path).expect("Reading palette from disk");
+            let palette = Palette::from_file_contents(&input).expect("Decoding palette");
+            self.colors = palette.colors;
+        }
     }
 }
 
@@ -379,10 +383,16 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
             }
         }
         if self.save.on_mouse_click(xy) {
-            self.result = Push(false, SaveFile(String::from("pal"), self.file_path.clone()));
+            if let Some(path) = file_dialog(&self.file_path, &[("Palette", "pal")]).save_file() {
+                self.file_path = Some(path.to_string_lossy().to_string());
+                self.save_palette();
+            }
         }
         if self.load.on_mouse_click(xy) {
-            self.result = Push(false, LoadFile(String::from("pal")));
+            if let Some(path) = file_dialog(&self.file_path, &[("Palette", "pal")]).pick_file() {
+                self.file_path = Some(path.to_string_lossy().to_string());
+                self.load_palette();
+            }
         }
     }
 
@@ -395,13 +405,6 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
     }
 
     fn resuming(&mut self, result: Option<SceneResult>) {
-        if let Some(result) = result {
-            match result {
-                SceneResult::LoadFilePath(path) => self.load_palette(path),
-                SceneResult::SaveFilePath(path) => self.save_palette(path),
-                _ => {}
-            }
-        }
         self.result = Nothing;
     }
 
