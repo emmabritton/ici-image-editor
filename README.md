@@ -9,4 +9,7 @@ Used to edit ICI images (`IndexedImage`) from [ici-files](https://github.com/emm
 
 ## TODO
 - Undo/redo
-- Load palettes from images
+- New palette system
+- Confirmation before clear/close
+- Animation
+- Canvas and palette scrolling
