@@ -11,7 +11,11 @@ use pixels_graphics_lib::ui::prelude::TextFilter::Decimal;
 use pixels_graphics_lib::ui::prelude::*;
 
 use std::fs;
+use std::ops::Add;
 use std::path::PathBuf;
+use std::time::{Duration, Instant};
+
+const PER_UNDO: u64 = 200;
 
 #[allow(unused)] //will be soon
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -68,6 +72,7 @@ pub struct Editor {
     #[allow(unused)] //will be one day
     frames: Vec<IndexedImage>,
     palette: PaletteView,
+    last_undo: Instant
 }
 
 impl Editor {
@@ -262,6 +267,7 @@ impl Editor {
             filepath: None,
             canvas,
             frames,
+            last_undo: Instant::now()
         })
     }
 
@@ -327,6 +333,21 @@ impl Scene<SceneResult, SceneName> for Editor {
         self.canvas.render(graphics, mouse_xy);
     }
 
+    fn on_key_down(&mut self, key: VirtualKeyCode, held: &Vec<&VirtualKeyCode>) {
+        if self.last_undo < Instant::now() {
+            if key == VirtualKeyCode::Z && !held.contains(&&VirtualKeyCode::LShift) && (held.contains(&&VirtualKeyCode::LControl) || held.contains(&&VirtualKeyCode::LWin)) {
+                self.canvas.undo().unwrap();
+                self.last_undo = Instant::now().add(Duration::from_millis(PER_UNDO));
+                self.palette.set_palette(self.canvas.get_palette());
+            }
+            if ((key == VirtualKeyCode::Z && held.contains(&&VirtualKeyCode::LShift)) || key == VirtualKeyCode::Y) && (held.contains(&&VirtualKeyCode::LControl) || held.contains(&&VirtualKeyCode::LWin)) {
+                self.canvas.redo().unwrap();
+                self.last_undo = Instant::now().add(Duration::from_millis(PER_UNDO));
+                self.palette.set_palette(self.canvas.get_palette());
+            }
+        }
+    }
+
     fn on_key_up(&mut self, key: VirtualKeyCode, _: &Vec<&VirtualKeyCode>) {
         self.speed.on_key_press(key);
     }
@@ -358,7 +379,7 @@ impl Scene<SceneResult, SceneName> for Editor {
             self.result = Pop(None);
         }
         if self.clear.on_mouse_click(xy) {
-            self.canvas.clear();
+            self.canvas.clear().unwrap();
         }
         if self.save.on_mouse_click(xy) {
             if self.filepath.is_some() {
@@ -404,7 +425,7 @@ impl Scene<SceneResult, SceneName> for Editor {
             self.palette.set_palette(&colors);
             self.palette.set_color_index(0);
             self.canvas.set_color_index(0);
-            if let Err(e) = self.canvas.get_mut_image().set_palette(&colors) {
+            if let Err(e) = self.canvas.set_palette(&colors) {
                 panic!(
                     "Failed to update palette: {} (please raise issue on github)",
                     e

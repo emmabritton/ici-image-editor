@@ -1,6 +1,6 @@
-use fnv::FnvHashSet;
 use log::error;
 use pixels_graphics_lib::prelude::*;
+use crate::ui::edit_history::FrameHistory;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum Tool {
@@ -14,7 +14,7 @@ pub enum Tool {
 pub struct Canvas {
     bounds: Rect,
     inner_bounds: Rect,
-    image: IndexedImage,
+    frame: FrameHistory,
     screen_px_per_image_px: usize,
     trans_background_colors: (Color, Color),
     cursor_color: Color,
@@ -28,7 +28,7 @@ impl Canvas {
         Self {
             bounds: Rect::new_with_size(xy, width, height),
             inner_bounds: Rect::new_with_size(xy, 0, 0),
-            image: IndexedImage::new(1, 1, vec![IciColor::transparent()], vec![0]).unwrap(),
+            frame: FrameHistory::new(IndexedImage::new(1, 1, vec![IciColor::transparent()], vec![0]).unwrap()),
             screen_px_per_image_px: 1,
             trans_background_colors: (LIGHT_GRAY, DARK_GRAY),
             cursor_color: RED,
@@ -41,14 +41,16 @@ impl Canvas {
 
 impl Canvas {
     pub fn set_image(&mut self, image: IndexedImage) {
-        self.image = image;
-        let side = self.image.width().max(self.image.height()) as usize;
+        let width = image.width() as usize;
+        let height = image.height() as usize;
+        self.frame = FrameHistory::new(image);
+        let side = width.max(height);
         let length = self.bounds.width().min(self.bounds.height());
         self.screen_px_per_image_px = length / side;
         self.inner_bounds = Rect::new_with_size(
             (0, 0),
-            self.image.width() as usize * self.screen_px_per_image_px,
-            self.image.height() as usize * self.screen_px_per_image_px,
+            width * self.screen_px_per_image_px,
+            height * self.screen_px_per_image_px,
         );
         let max_width = self.bounds.width() / 2;
         let max_height = self.bounds.height() / 2;
@@ -61,29 +63,23 @@ impl Canvas {
     }
 
     pub fn get_image(&self) -> &IndexedImage {
-        &self.image
+        self.frame.get_current_image()
     }
 
-    pub fn get_mut_image(&mut self) -> &mut IndexedImage {
-        &mut self.image
+    pub fn set_palette(&mut self, palette: &[IciColor]) -> Result<(), IndexedImageError> {
+        self.frame.add_palette(palette)
     }
 
     pub fn on_mouse_down(&mut self, mouse_xy: Coord) {
         if self.inner_bounds.contains(mouse_xy) {
             let (x, y) = self.mouse_to_image(mouse_xy);
-            if self.image.get_pixel_index(x, y).is_ok() {
+            // if self.image.get_pixel_index(x, y).is_ok() {
                 if self.tool == Tool::Pencil {
-                    if let Err(e) = self
-                        .image
-                        .get_pixel_index(x, y)
-                        .and_then(|idx| self.image.set_pixel(idx, self.selected_color_idx))
-                    {
-                        error!("Error drawing {:?} at {x},{y}: {e:?}", self.tool);
-                    }
+                    self.frame.add_pencil((x,y), self.selected_color_idx).unwrap();
                 } else if self.first_click_at.is_none() {
                     self.first_click_at = Some((x, y));
                 }
-            }
+            // }
         }
     }
 
@@ -91,9 +87,9 @@ impl Canvas {
         if self.inner_bounds.contains(mouse_xy) {
             let (x, y) = self.mouse_to_image(mouse_xy);
             let result = match (self.tool, self.first_click_at) {
-                (Tool::Line, Some(start)) => self.line(start, (x, y)),
-                (Tool::Rect, Some(start)) => self.rect(start, (x, y)),
-                (Tool::Fill, Some(start)) => self.fill(start),
+                (Tool::Line, Some(start)) => self.frame.add_line(start, (x,y), self.selected_color_idx),
+                (Tool::Rect, Some(start)) => self.frame.add_rect(start, (x,y), self.selected_color_idx),
+                (Tool::Fill, Some(start)) => self.frame.add_fill(start, self.selected_color_idx),
                 _ => Ok(()),
             };
             if let Err(e) = result {
@@ -103,100 +99,8 @@ impl Canvas {
         self.first_click_at = None;
     }
 
-    fn line(&mut self, start: (u8, u8), end: (u8, u8)) -> Result<(), IndexedImageError> {
-        let points = Line::new(start, end).outline_pixels();
-
-        for point in points {
-            let i = self.image.get_pixel_index(point.x as u8, point.y as u8)?;
-            self.image.set_pixel(i, self.selected_color_idx)?;
-        }
-
-        Ok(())
-    }
-
-    fn rect(&mut self, start: (u8, u8), end: (u8, u8)) -> Result<(), IndexedImageError> {
-        let top_left = ((start.0).min(end.0), (start.1).min(end.1));
-        let bottom_right = ((start.0).max(end.0), (start.1).max(end.1));
-
-        for x in top_left.0..bottom_right.0 {
-            let i = self.image.get_pixel_index(x, top_left.1)?;
-            self.image.set_pixel(i, self.selected_color_idx)?;
-            let i = self.image.get_pixel_index(x, bottom_right.1)?;
-            self.image.set_pixel(i, self.selected_color_idx)?;
-        }
-
-        for y in top_left.1..=bottom_right.1 {
-            let i = self.image.get_pixel_index(top_left.0, y)?;
-            self.image.set_pixel(i, self.selected_color_idx)?;
-            let i = self.image.get_pixel_index(bottom_right.0, y)?;
-            self.image.set_pixel(i, self.selected_color_idx)?;
-        }
-
-        Ok(())
-    }
-
-    pub fn clear(&mut self) {
-        let width = self.image.width();
-        let height = self.image.height();
-        let palette = self.image.get_palette().to_vec();
-        self.image = IndexedImage::new(
-            width,
-            height,
-            palette,
-            vec![0; width as usize * height as usize],
-        )
-        .unwrap()
-    }
-
-    fn fill(&mut self, start: (u8, u8)) -> Result<(), IndexedImageError> {
-        let i = self.image.get_pixel_index(start.0, start.1)?;
-        let replace_color = self.image.get_pixel(i)?;
-        let to_replace = self.get_valid_neighbours(FnvHashSet::default(), start, replace_color)?;
-
-        for idx in to_replace {
-            self.image.set_pixel(idx, self.selected_color_idx)?;
-        }
-
-        Ok(())
-    }
-
-    fn get_valid_neighbours(
-        &self,
-        set: FnvHashSet<usize>,
-        start: (u8, u8),
-        replace_color: u8,
-    ) -> Result<FnvHashSet<usize>, IndexedImageError> {
-        let start = (start.0 as isize, start.1 as isize);
-        let set = self.check_and_set(set, start, replace_color, (-1, 0))?;
-        let set = self.check_and_set(set, start, replace_color, (1, 0))?;
-        let set = self.check_and_set(set, start, replace_color, (0, -1))?;
-        self.check_and_set(set, start, replace_color, (0, 1))
-    }
-
-    fn check_and_set(
-        &self,
-        mut set: FnvHashSet<usize>,
-        start: (isize, isize),
-        replace_color: u8,
-        diff: (isize, isize),
-    ) -> Result<FnvHashSet<usize>, IndexedImageError> {
-        let target = (start.0 + diff.0, start.1 + diff.1);
-        if target.0 >= 0
-            && target.0 < self.image.width() as isize
-            && target.1 >= 0
-            && target.1 < self.image.height() as isize
-        {
-            let start = (target.0 as u8, target.1 as u8);
-            let i = self.image.get_pixel_index(start.0, start.1)?;
-            if !set.contains(&i) {
-                let color = self.image.get_pixel(i)?;
-                if color == replace_color {
-                    set.insert(i);
-                    return self.get_valid_neighbours(set, start, replace_color);
-                }
-            }
-        }
-        Ok(set)
+    pub fn clear(&mut self) -> Result<(), IndexedImageError> {
+        self.frame.add_clear()
     }
 
     #[allow(unused)] //will be one day
@@ -204,13 +108,13 @@ impl Canvas {
         self.trans_background_colors
     }
 
-    #[allow(unused)] //will be one day
+    #[allow(unused)]    //will be one day
     pub fn set_trans_background_colors(&mut self, trans_background_colors: (Color, Color)) {
         self.trans_background_colors = trans_background_colors;
     }
 
     pub fn set_color_index(&mut self, idx: u8) {
-        if let Ok(color) = self.image.get_color(idx) {
+        if let Some(color) = self.frame.get_color(idx) {
             self.cursor_color = color.to_color();
             self.selected_color_idx = idx;
         }
@@ -226,6 +130,18 @@ impl Canvas {
 
     pub fn set_tool(&mut self, tool: Tool) {
         self.tool = tool;
+    }
+
+    pub fn undo(&mut self) -> Result<(), IndexedImageError> {
+        self.frame.undo()
+    }
+
+    pub fn redo(&mut self) -> Result<(), IndexedImageError> {
+        self.frame.redo()
+    }
+
+    pub fn get_palette(&self) -> &[IciColor] {
+        self.frame.get_current_image().get_palette()
     }
 }
 
@@ -250,10 +166,10 @@ impl Canvas {
         );
     }
 
-    fn draw_img_px(&self, graphics: &mut Graphics, img_x: u8, img_y: u8, trans_color: Color) {
-        let img_i = self.image.get_pixel_index(img_x, img_y).unwrap();
-        let color_idx = self.image.get_pixel(img_i).unwrap();
-        let color = self.image.get_color(color_idx).unwrap();
+    fn draw_img_px(&self, graphics: &mut Graphics, image: &IndexedImage, img_x: u8, img_y: u8, trans_color: Color) {
+        let img_i = image.get_pixel_index(img_x, img_y).unwrap();
+        let color_idx = image.get_pixel(img_i).unwrap();
+        let color = image.get_color(color_idx).unwrap();
         let px_size = self.screen_px_per_image_px as isize;
         let scr_x = img_x as isize * px_size;
         let scr_y = img_y as isize * px_size;
@@ -328,12 +244,13 @@ impl UiElement for Canvas {
         let orig_trans = graphics.get_translate();
         graphics.set_translate(self.inner_bounds.top_left());
 
-        for img_y in 0..self.image.height() {
-            for img_x in 0..self.image.width() {
-                self.draw_img_px(graphics, img_x, img_y, trans_color);
+        let image = self.frame.get_current_image();
+        for img_y in 0..image.height() {
+            for img_x in 0..image.width() {
+                self.draw_img_px(graphics, image,img_x, img_y, trans_color);
                 swap_color(&mut trans_color);
             }
-            if self.image.width() % 2 == 0 {
+            if image.width() % 2 == 0 {
                 swap_color(&mut trans_color);
             }
         }
