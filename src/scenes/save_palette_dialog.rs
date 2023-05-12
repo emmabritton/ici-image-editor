@@ -124,7 +124,7 @@ impl Scene<SceneResult, SceneName> for SavePaletteDataDialog {
         }
     }
 
-    fn on_key_up(&mut self, key: VirtualKeyCode, _: &Vec<&VirtualKeyCode>) {
+    fn on_key_up(&mut self, key: VirtualKeyCode, _: Coord, _: &Vec<&VirtualKeyCode>) {
         self.id.on_key_press(key);
         self.name.on_key_press(key);
     }

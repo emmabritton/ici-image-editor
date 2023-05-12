@@ -66,7 +66,7 @@ impl Scene<SceneResult, SceneName> for Menu {
         self.load_button.render(graphics, mouse_xy);
     }
 
-    fn on_key_up(&mut self, _: VirtualKeyCode, _: &Vec<&VirtualKeyCode>) {}
+    fn on_key_up(&mut self, _: VirtualKeyCode, _: Coord, _: &Vec<&VirtualKeyCode>) {}
 
     fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, _: &Vec<&VirtualKeyCode>) {
         if button != MouseButton::Left {

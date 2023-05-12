@@ -315,7 +315,7 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
         }
     }
 
-    fn on_key_up(&mut self, key: VirtualKeyCode, _: &Vec<&VirtualKeyCode>) {
+    fn on_key_up(&mut self, key: VirtualKeyCode, _: Coord, _: &Vec<&VirtualKeyCode>) {
         self.red.on_key_press(key);
         self.green.on_key_press(key);
         self.blue.on_key_press(key);

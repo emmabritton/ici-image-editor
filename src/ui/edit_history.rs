@@ -1,7 +1,7 @@
-use std::mem::swap;
+use crate::ui::image_fill::fill_pixels;
 use fnv::FnvHashSet;
 use pixels_graphics_lib::prelude::{IciColor, IndexedImage, IndexedImageError, Line, Shape};
-use crate::ui::image_fill::fill_pixels;
+use std::mem::swap;
 
 #[derive(Debug, Clone)]
 pub enum EditEvent {
@@ -22,19 +22,24 @@ pub struct FrameHistory {
 impl FrameHistory {
     pub fn new(base_image: IndexedImage) -> Self {
         let current_image = base_image.clone();
-        Self { base_image, current_image, history: vec![], index: 0 }
+        Self {
+            base_image,
+            current_image,
+            history: vec![],
+            index: 0,
+        }
     }
 }
 
 impl FrameHistory {
-    pub fn undo(&mut self)  -> Result<(), IndexedImageError >{
+    pub fn undo(&mut self) -> Result<(), IndexedImageError> {
         if self.index >= 1 {
             self.index -= 1;
         }
         self.rebuild_current_image()
     }
 
-    pub fn redo(&mut self) -> Result<(), IndexedImageError >{
+    pub fn redo(&mut self) -> Result<(), IndexedImageError> {
         if self.index < self.history.len() - 1 {
             self.index += 1;
         }
@@ -51,12 +56,19 @@ impl FrameHistory {
 }
 
 impl FrameHistory {
-    pub fn add_line(&mut self, start: (u8, u8), end: (u8, u8), color: u8) -> Result<(), IndexedImageError> {
+    pub fn add_line(
+        &mut self,
+        start: (u8, u8),
+        end: (u8, u8),
+        color: u8,
+    ) -> Result<(), IndexedImageError> {
         let points = Line::new(start, end).outline_pixels();
         let mut pixels = vec![];
 
         for point in points {
-            let i = self.base_image.get_pixel_index(point.x as u8, point.y as u8)?;
+            let i = self
+                .base_image
+                .get_pixel_index(point.x as u8, point.y as u8)?;
             pixels.push(i);
         }
 
@@ -64,7 +76,12 @@ impl FrameHistory {
         self.add_event(event)
     }
 
-    pub fn add_rect(&mut self, start: (u8, u8), end: (u8, u8), color: u8) -> Result<(), IndexedImageError> {
+    pub fn add_rect(
+        &mut self,
+        start: (u8, u8),
+        end: (u8, u8),
+        color: u8,
+    ) -> Result<(), IndexedImageError> {
         let mut pixels = FnvHashSet::default();
         let top_left = ((start.0).min(end.0), (start.1).min(end.1));
         let bottom_right = ((start.0).max(end.0), (start.1).max(end.1));
@@ -150,15 +167,25 @@ impl FrameHistory {
 
 #[cfg(test)]
 mod test {
-    use pixels_graphics_lib::prelude::{IciColor, IndexedImage};
     use crate::ui::edit_history::FrameHistory;
+    use pixels_graphics_lib::prelude::{IciColor, IndexedImage};
 
     fn compare_images(lhs: &IndexedImage, rhs: &IndexedImage) {
         if lhs.width() != rhs.width() || lhs.height() != rhs.height() {
-            panic!("Images are different sizes: {},{} != {},{}", lhs.width(), lhs.height(), rhs.width(), rhs.height());
+            panic!(
+                "Images are different sizes: {},{} != {},{}",
+                lhs.width(),
+                lhs.height(),
+                rhs.width(),
+                rhs.height()
+            );
         }
         if lhs.get_palette() != rhs.get_palette() {
-            panic!("Images have different palettes: {:?} != {:?}", lhs.get_palette(), rhs.get_palette());
+            panic!(
+                "Images have different palettes: {:?} != {:?}",
+                lhs.get_palette(),
+                rhs.get_palette()
+            );
         }
         let mut output = String::new();
         let len = lhs.width() as usize * lhs.height() as usize;
@@ -176,8 +203,20 @@ mod test {
 
     #[test]
     fn after_one_fill() {
-        let base = IndexedImage::new(4, 4, vec![IciColor::transparent(), IciColor::new(255, 0, 0, 255)], vec![0; 4 * 4]).unwrap();
-        let red = IndexedImage::new(4, 4, vec![IciColor::transparent(), IciColor::new(255, 0, 0, 255)], vec![1; 4 * 4]).unwrap();
+        let base = IndexedImage::new(
+            4,
+            4,
+            vec![IciColor::transparent(), IciColor::new(255, 0, 0, 255)],
+            vec![0; 4 * 4],
+        )
+        .unwrap();
+        let red = IndexedImage::new(
+            4,
+            4,
+            vec![IciColor::transparent(), IciColor::new(255, 0, 0, 255)],
+            vec![1; 4 * 4],
+        )
+        .unwrap();
         let mut history = FrameHistory::new(base.clone());
         compare_images(&base, &history.current_image);
         history.add_fill((0, 0), 1).unwrap();
@@ -186,10 +225,14 @@ mod test {
 
     #[test]
     fn undo_redo() {
-        let palette = vec![IciColor::transparent(), IciColor::new(255, 0, 0, 255), IciColor::new(255, 0, 0, 255)];
+        let palette = vec![
+            IciColor::transparent(),
+            IciColor::new(255, 0, 0, 255),
+            IciColor::new(255, 0, 0, 255),
+        ];
         let base = IndexedImage::new(4, 4, palette.clone(), vec![0; 4 * 4]).unwrap();
         let red = IndexedImage::new(4, 4, palette.clone(), vec![1; 4 * 4]).unwrap();
-        let blue = IndexedImage::new(4, 4, palette.clone(), vec![2; 4 * 4]).unwrap();
+        let blue = IndexedImage::new(4, 4, palette, vec![2; 4 * 4]).unwrap();
         let mut history = FrameHistory::new(base.clone());
         compare_images(&base, &history.current_image);
         history.add_fill((0, 0), 1).unwrap();
@@ -206,10 +249,14 @@ mod test {
 
     #[test]
     fn undo_event_redo() {
-        let palette = vec![IciColor::transparent(), IciColor::new(255, 0, 0, 255), IciColor::new(255, 0, 0, 255)];
+        let palette = vec![
+            IciColor::transparent(),
+            IciColor::new(255, 0, 0, 255),
+            IciColor::new(255, 0, 0, 255),
+        ];
         let base = IndexedImage::new(4, 4, palette.clone(), vec![0; 4 * 4]).unwrap();
         let red = IndexedImage::new(4, 4, palette.clone(), vec![1; 4 * 4]).unwrap();
-        let blue = IndexedImage::new(4, 4, palette.clone(), vec![2; 4 * 4]).unwrap();
+        let blue = IndexedImage::new(4, 4, palette, vec![2; 4 * 4]).unwrap();
         let mut history = FrameHistory::new(base.clone());
         compare_images(&base, &history.current_image);
         history.add_fill((0, 0), 1).unwrap();

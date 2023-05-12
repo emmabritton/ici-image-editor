@@ -1,6 +1,7 @@
+use crate::graphics_shapes::coord;
+use crate::ui::edit_history::FrameHistory;
 use log::error;
 use pixels_graphics_lib::prelude::*;
-use crate::ui::edit_history::FrameHistory;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum Tool {
@@ -28,7 +29,9 @@ impl Canvas {
         Self {
             bounds: Rect::new_with_size(xy, width, height),
             inner_bounds: Rect::new_with_size(xy, 0, 0),
-            frame: FrameHistory::new(IndexedImage::new(1, 1, vec![IciColor::transparent()], vec![0]).unwrap()),
+            frame: FrameHistory::new(
+                IndexedImage::new(1, 1, vec![IciColor::transparent()], vec![0]).unwrap(),
+            ),
             screen_px_per_image_px: 1,
             trans_background_colors: (LIGHT_GRAY, DARK_GRAY),
             cursor_color: RED,
@@ -56,7 +59,7 @@ impl Canvas {
         let max_height = self.bounds.height() / 2;
         let image_width = self.inner_bounds.width() / 2;
         let image_height = self.inner_bounds.height() / 2;
-        self.inner_bounds = self.inner_bounds.move_to((
+        self.inner_bounds = self.inner_bounds.move_to(coord!(
             self.bounds.top_left().x + ((max_width - image_width) as isize),
             self.bounds.top_left().y + ((max_height - image_height) as isize),
         ));
@@ -74,11 +77,13 @@ impl Canvas {
         if self.inner_bounds.contains(mouse_xy) {
             let (x, y) = self.mouse_to_image(mouse_xy);
             // if self.image.get_pixel_index(x, y).is_ok() {
-                if self.tool == Tool::Pencil {
-                    self.frame.add_pencil((x,y), self.selected_color_idx).unwrap();
-                } else if self.first_click_at.is_none() {
-                    self.first_click_at = Some((x, y));
-                }
+            if self.tool == Tool::Pencil {
+                self.frame
+                    .add_pencil((x, y), self.selected_color_idx)
+                    .unwrap();
+            } else if self.first_click_at.is_none() {
+                self.first_click_at = Some((x, y));
+            }
             // }
         }
     }
@@ -87,8 +92,12 @@ impl Canvas {
         if self.inner_bounds.contains(mouse_xy) {
             let (x, y) = self.mouse_to_image(mouse_xy);
             let result = match (self.tool, self.first_click_at) {
-                (Tool::Line, Some(start)) => self.frame.add_line(start, (x,y), self.selected_color_idx),
-                (Tool::Rect, Some(start)) => self.frame.add_rect(start, (x,y), self.selected_color_idx),
+                (Tool::Line, Some(start)) => {
+                    self.frame.add_line(start, (x, y), self.selected_color_idx)
+                }
+                (Tool::Rect, Some(start)) => {
+                    self.frame.add_rect(start, (x, y), self.selected_color_idx)
+                }
                 (Tool::Fill, Some(start)) => self.frame.add_fill(start, self.selected_color_idx),
                 _ => Ok(()),
             };
@@ -99,6 +108,10 @@ impl Canvas {
         self.first_click_at = None;
     }
 
+    pub fn on_scroll(&mut self, _xy: Coord, _x_diff: isize, _y_diff: isize) {}
+
+    pub fn on_mouse_hover(&mut self, _timing: &Timing, _xy: Coord) {}
+
     pub fn clear(&mut self) -> Result<(), IndexedImageError> {
         self.frame.add_clear()
     }
@@ -108,7 +121,7 @@ impl Canvas {
         self.trans_background_colors
     }
 
-    #[allow(unused)]    //will be one day
+    #[allow(unused)] //will be one day
     pub fn set_trans_background_colors(&mut self, trans_background_colors: (Color, Color)) {
         self.trans_background_colors = trans_background_colors;
     }
@@ -166,7 +179,14 @@ impl Canvas {
         );
     }
 
-    fn draw_img_px(&self, graphics: &mut Graphics, image: &IndexedImage, img_x: u8, img_y: u8, trans_color: Color) {
+    fn draw_img_px(
+        &self,
+        graphics: &mut Graphics,
+        image: &IndexedImage,
+        img_x: u8,
+        img_y: u8,
+        trans_color: Color,
+    ) {
         let img_i = image.get_pixel_index(img_x, img_y).unwrap();
         let color_idx = image.get_pixel(img_i).unwrap();
         let color = image.get_color(color_idx).unwrap();
@@ -247,7 +267,7 @@ impl UiElement for Canvas {
         let image = self.frame.get_current_image();
         for img_y in 0..image.height() {
             for img_x in 0..image.width() {
-                self.draw_img_px(graphics, image,img_x, img_y, trans_color);
+                self.draw_img_px(graphics, image, img_x, img_y, trans_color);
                 swap_color(&mut trans_color);
             }
             if image.width() % 2 == 0 {

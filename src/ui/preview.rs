@@ -1,0 +1,94 @@
+use pixels_graphics_lib::buffer_graphics_lib::{color, Graphics};
+use pixels_graphics_lib::prelude::{
+    fill, Color, Coord, ElementState, IciColor, IndexedImage, Rect, Shape,
+};
+use pixels_graphics_lib::ui::UiElement;
+use pixels_graphics_lib::Timing;
+
+const COLOR_BUTTON_HEIGHT: usize = 8;
+
+const COLORS: [Color; 4] = [
+    color::WHITE,
+    color::BLACK,
+    color::LIGHT_GRAY,
+    color::DARK_GRAY,
+];
+
+#[derive(Debug)]
+pub struct Preview {
+    bounds: Rect,
+    image: IndexedImage,
+    background: usize,
+}
+
+impl Preview {
+    pub fn new(bounds: Rect) -> Self {
+        Self {
+            bounds,
+            image: IndexedImage::new(4, 4, vec![IciColor::transparent()], vec![0; 16]).unwrap(),
+            background: 0,
+        }
+    }
+}
+
+impl Preview {
+    pub fn set_image(&mut self, image: IndexedImage) {
+        self.image = image;
+    }
+
+    pub fn on_mouse_click(&mut self, xy: Coord) {
+        if Rect::new_with_size(
+            self.bounds.top_left(),
+            self.bounds.width(),
+            COLOR_BUTTON_HEIGHT,
+        )
+        .contains(xy)
+        {
+            let color_width = self.bounds.width() / COLORS.len();
+            self.background = ((xy - self.bounds.top_left()).x / color_width as isize) as usize;
+        }
+    }
+}
+
+impl UiElement for Preview {
+    fn bounds(&self) -> &Rect {
+        &self.bounds
+    }
+
+    fn render(&self, graphics: &mut Graphics, _: Coord) {
+        graphics.draw_rect(self.bounds.clone(), fill(COLORS[self.background]));
+        let color_width = self.bounds.width() / COLORS.len();
+        for (i, color) in COLORS.iter().enumerate() {
+            let rect = Rect::new_with_size(
+                self.bounds.top_left() + (i * color_width, 0),
+                color_width,
+                COLOR_BUTTON_HEIGHT,
+            );
+            graphics.draw_rect(rect, fill(*color));
+        }
+
+        let x = if self.image.width() as usize >= self.bounds.width() {
+            0
+        } else {
+            (self.bounds.width() / 2) - (self.image.width() as usize / 2)
+        };
+
+        let y = if self.image.height() as usize >= (self.bounds.height() - COLOR_BUTTON_HEIGHT) {
+            COLOR_BUTTON_HEIGHT
+        } else {
+            ((self.bounds.height() - COLOR_BUTTON_HEIGHT) / 2 - (self.image.height() as usize / 2))
+                + COLOR_BUTTON_HEIGHT
+        };
+        graphics.draw_indexed_image(self.bounds.top_left() + (x, y + 1), &self.image);
+    }
+
+    fn update(&mut self, _: &Timing) {}
+
+    fn set_state(&mut self, _: ElementState) {
+        unimplemented!("Preview is always normal")
+    }
+
+    fn get_state(&self) -> ElementState {
+        ElementState::Normal
+    }
+}

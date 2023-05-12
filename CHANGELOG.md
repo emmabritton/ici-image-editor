@@ -1,5 +1,12 @@
 # Changelog
 
+### Version 0.3.2
+- Add preview
+- More quick create options
+- Limit images to 64x64
+- Make palette scrollable so it supports up to 255 colors
+- Fix bugs
+
 ### Version 0.3.1
 - Add undo (ctrl+z or logo+z) and redo (ctrl+shift+z or logo+shift+z or ctrl+y or logo+y)
 

@@ -8,7 +8,7 @@ Used to edit ICI images (`IndexedImage`) from [ici-files](https://github.com/emm
 ![Edit Palette](https://github.com/emmabritton/ici-image-editor/raw/main/.github/screenshots/palette.png)
 
 ## TODO
-- Undo/redo
+- Support images bigger than 64x64
 - New palette system
 - Confirmation before clear/close
 - Animation

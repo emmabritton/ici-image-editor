@@ -22,18 +22,23 @@ pub struct NewImageDialog {
     background: ShapeCollection,
     error_outline: Polyline,
     error_message: Option<String>,
-    // error_icon: Image,
     quick_8: Button,
     quick_12: Button,
     quick_16: Button,
+    quick_24: Button,
+    quick_32: Button,
+    quick_48: Button,
+    quick_64: Button,
+    quick_8_16: Button,
     error_pos: Coord,
+    label: Text,
 }
 
 impl NewImageDialog {
     pub fn new(width: usize, height: usize, style: &DialogStyle) -> Box<Self> {
         let background = dialog_background(width, height, style);
         let width_label = Text::new(
-            "Width (1..=20)",
+            "Width (1..=64)",
             TextPos::px(style.bounds.top_left() + (8, 8)),
             (WHITE, Normal),
         );
@@ -47,7 +52,7 @@ impl NewImageDialog {
             &style.text_field,
         );
         let height_label = Text::new(
-            "Height (1..=20)",
+            "Height (1..=64)",
             TextPos::px(style.bounds.top_left() + (8, 40)),
             (WHITE, Normal),
         );
@@ -82,27 +87,76 @@ impl NewImageDialog {
             RED,
         )
         .unwrap();
-        // let warning_icon_data = include_bytes!("../../assets/icons/warning.png");
-        // let cursor = Cursor::new(warning_icon_data);
-        // let reader = BufReader::new(cursor);
-        // let warning_icon = load_image(reader, Png).unwrap();
+        let row1_y = 80;
+        let row2_y = 100;
+        let row3_y = 120;
         let quick_8 = Button::new(
-            style.bounds.top_left() + (138, 8),
+            style.bounds.top_left() + (8, row1_y),
             "8x8",
             Some(50),
             &style.button,
         );
         let quick_12 = Button::new(
-            style.bounds.top_left() + (138, 30),
+            (
+                quick_8.bounds().bottom_right().x + 8,
+                style.bounds.top_left().y + row1_y,
+            ),
             "12x12",
             Some(50),
             &style.button,
         );
         let quick_16 = Button::new(
-            style.bounds.top_left() + (138, 52),
+            (
+                quick_12.bounds().bottom_right().x + 8,
+                style.bounds.top_left().y + row1_y,
+            ),
             "16x16",
             Some(50),
             &style.button,
+        );
+        let quick_24 = Button::new(
+            style.bounds.top_left() + (8, row2_y),
+            "24x24",
+            Some(50),
+            &style.button,
+        );
+        let quick_32 = Button::new(
+            (
+                quick_24.bounds().bottom_right().x + 8,
+                style.bounds.top_left().y + row2_y,
+            ),
+            "32x32",
+            Some(50),
+            &style.button,
+        );
+        let quick_48 = Button::new(
+            (
+                quick_32.bounds().bottom_right().x + 8,
+                style.bounds.top_left().y + row2_y,
+            ),
+            "48x48",
+            Some(50),
+            &style.button,
+        );
+        let quick_64 = Button::new(
+            style.bounds.top_left() + (8, row3_y),
+            "64x64",
+            Some(50),
+            &style.button,
+        );
+        let quick_8_16 = Button::new(
+            (
+                quick_64.bounds().bottom_right().x + 8,
+                style.bounds.top_left().y + row3_y,
+            ),
+            "8x16",
+            Some(50),
+            &style.button,
+        );
+        let label = Text::new(
+            "Quick create",
+            TextPos::px(style.bounds.top_left() + (8, 68)),
+            (WHITE, Normal),
         );
         Box::new(Self {
             result: Nothing,
@@ -115,11 +169,16 @@ impl NewImageDialog {
             background,
             error_outline,
             error_message: None,
-            // error_icon: warning_icon,
             quick_8,
             quick_12,
             quick_16,
+            quick_24,
+            quick_32,
+            quick_48,
+            quick_64,
+            quick_8_16,
             error_pos,
+            label,
         })
     }
 }
@@ -141,7 +200,11 @@ impl NewImageDialog {
             } else {
                 let width = width.unwrap();
                 let height = height.unwrap();
+                // if width > 64 || height > 64 {
+                //     Err(String::from("Too big, max 64"))
+                // } else {
                 Ok((width, height))
+                // }
             }
         }
     }
@@ -158,9 +221,15 @@ impl Scene<SceneResult, SceneName> for NewImageDialog {
         graphics.draw(&self.height_label);
         self.submit_button.render(graphics, mouse_xy);
         self.cancel_button.render(graphics, mouse_xy);
+        self.label.render(graphics);
         self.quick_8.render(graphics, mouse_xy);
         self.quick_12.render(graphics, mouse_xy);
         self.quick_16.render(graphics, mouse_xy);
+        self.quick_32.render(graphics, mouse_xy);
+        self.quick_24.render(graphics, mouse_xy);
+        self.quick_48.render(graphics, mouse_xy);
+        self.quick_64.render(graphics, mouse_xy);
+        self.quick_8_16.render(graphics, mouse_xy);
         self.width_field.render(graphics, mouse_xy);
         self.height_field.render(graphics, mouse_xy);
 
@@ -175,7 +244,7 @@ impl Scene<SceneResult, SceneName> for NewImageDialog {
         }
     }
 
-    fn on_key_up(&mut self, key: VirtualKeyCode, _: &Vec<&VirtualKeyCode>) {
+    fn on_key_up(&mut self, key: VirtualKeyCode, _: Coord, _: &Vec<&VirtualKeyCode>) {
         if key == VirtualKeyCode::Tab && self.width_field.is_focused() {
             self.width_field.unfocus();
             self.height_field.focus();
@@ -207,6 +276,21 @@ impl Scene<SceneResult, SceneName> for NewImageDialog {
         }
         if self.quick_16.on_mouse_click(xy) {
             self.set_success(16, 16);
+        }
+        if self.quick_24.on_mouse_click(xy) {
+            self.set_success(24, 24);
+        }
+        if self.quick_32.on_mouse_click(xy) {
+            self.set_success(32, 32);
+        }
+        if self.quick_48.on_mouse_click(xy) {
+            self.set_success(48, 48);
+        }
+        if self.quick_64.on_mouse_click(xy) {
+            self.set_success(64, 64);
+        }
+        if self.quick_8_16.on_mouse_click(xy) {
+            self.set_success(8, 16);
         }
     }
 

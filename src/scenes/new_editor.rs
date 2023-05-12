@@ -10,6 +10,7 @@ use pixels_graphics_lib::scenes::SceneUpdateResult::{Nothing, Pop};
 use pixels_graphics_lib::ui::prelude::TextFilter::Decimal;
 use pixels_graphics_lib::ui::prelude::*;
 
+use crate::ui::preview::Preview;
 use std::fs;
 use std::ops::Add;
 use std::path::PathBuf;
@@ -30,7 +31,7 @@ const PADDING: isize = 4;
 const BUTTON_Y: isize = NAME_LINE_Y + PADDING;
 const FRAME_CONTROL: Coord = Coord::new(4, 200);
 const FRAME_CONTROL_SPACING: isize = 20;
-const PALETTE_HEIGHT: usize = 200;
+const PALETTE_HEIGHT: usize = 64;
 
 const TOOL_PENCIL: usize = 0;
 const TOOL_LINE: usize = 1;
@@ -72,7 +73,8 @@ pub struct Editor {
     #[allow(unused)] //will be one day
     frames: Vec<IndexedImage>,
     palette: PaletteView,
-    last_undo: Instant
+    last_undo: Instant,
+    preview: Preview,
 }
 
 impl Editor {
@@ -248,6 +250,7 @@ impl Editor {
         );
         palette.set_palette(canvas.get_image().get_palette());
         palette.set_color_index(1);
+        let preview = Preview::new(Rect::new_with_size((4, 122), 64, 73));
         Box::new(Self {
             result: Nothing,
             clear,
@@ -267,7 +270,8 @@ impl Editor {
             filepath: None,
             canvas,
             frames,
-            last_undo: Instant::now()
+            preview,
+            last_undo: Instant::now(),
         })
     }
 
@@ -331,16 +335,25 @@ impl Scene<SceneResult, SceneName> for Editor {
         self.palette.render(graphics, mouse_xy);
         self.edit_palette.render(graphics, mouse_xy);
         self.canvas.render(graphics, mouse_xy);
+        self.preview.render(graphics, mouse_xy);
     }
 
-    fn on_key_down(&mut self, key: VirtualKeyCode, held: &Vec<&VirtualKeyCode>) {
+    fn on_key_down(&mut self, key: VirtualKeyCode, _: Coord, held: &Vec<&VirtualKeyCode>) {
         if self.last_undo < Instant::now() {
-            if key == VirtualKeyCode::Z && !held.contains(&&VirtualKeyCode::LShift) && (held.contains(&&VirtualKeyCode::LControl) || held.contains(&&VirtualKeyCode::LWin)) {
+            if key == VirtualKeyCode::Z
+                && !held.contains(&&VirtualKeyCode::LShift)
+                && (held.contains(&&VirtualKeyCode::LControl)
+                    || held.contains(&&VirtualKeyCode::LWin))
+            {
                 self.canvas.undo().unwrap();
                 self.last_undo = Instant::now().add(Duration::from_millis(PER_UNDO));
                 self.palette.set_palette(self.canvas.get_palette());
             }
-            if ((key == VirtualKeyCode::Z && held.contains(&&VirtualKeyCode::LShift)) || key == VirtualKeyCode::Y) && (held.contains(&&VirtualKeyCode::LControl) || held.contains(&&VirtualKeyCode::LWin)) {
+            if ((key == VirtualKeyCode::Z && held.contains(&&VirtualKeyCode::LShift))
+                || key == VirtualKeyCode::Y)
+                && (held.contains(&&VirtualKeyCode::LControl)
+                    || held.contains(&&VirtualKeyCode::LWin))
+            {
                 self.canvas.redo().unwrap();
                 self.last_undo = Instant::now().add(Duration::from_millis(PER_UNDO));
                 self.palette.set_palette(self.canvas.get_palette());
@@ -348,7 +361,7 @@ impl Scene<SceneResult, SceneName> for Editor {
         }
     }
 
-    fn on_key_up(&mut self, key: VirtualKeyCode, _: &Vec<&VirtualKeyCode>) {
+    fn on_key_up(&mut self, key: VirtualKeyCode, _: Coord, _: &Vec<&VirtualKeyCode>) {
         self.speed.on_key_press(key);
     }
 
@@ -357,6 +370,7 @@ impl Scene<SceneResult, SceneName> for Editor {
             return;
         }
         self.canvas.on_mouse_down(xy);
+        self.preview.on_mouse_click(xy);
     }
 
     fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, _: &Vec<&VirtualKeyCode>) {
@@ -405,17 +419,22 @@ impl Scene<SceneResult, SceneName> for Editor {
             self.canvas.set_color_index(self.palette.get_selected_idx());
         }
         self.canvas.on_mouse_up(xy);
+        self.preview.set_image(self.canvas.get_image().clone());
     }
 
-    fn on_scroll(&mut self, _xy: Coord, _y_diff: isize, _x_diff: isize, _: &Vec<&VirtualKeyCode>) {}
+    fn on_scroll(&mut self, xy: Coord, x_diff: isize, y_diff: isize, _: &Vec<&VirtualKeyCode>) {
+        self.palette.on_scroll(xy, y_diff);
+        self.canvas.on_scroll(xy, x_diff, y_diff);
+    }
 
     fn update(
         &mut self,
         timing: &Timing,
-        _: Coord,
+        xy: Coord,
         _: &Vec<&VirtualKeyCode>,
     ) -> SceneUpdateResult<SceneResult, SceneName> {
         self.speed.update(timing);
+        self.canvas.on_mouse_hover(timing, xy);
         self.result.clone()
     }
 
