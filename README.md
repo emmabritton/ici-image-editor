@@ -12,4 +12,4 @@ Used to edit ICI images (`IndexedImage`) from [ici-files](https://github.com/emm
 - New palette system
 - Confirmation before clear/close
 - Animation
-- Canvas and palette scrolling
+- Canvas scrolling

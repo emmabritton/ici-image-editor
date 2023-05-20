@@ -1,5 +1,8 @@
 # Changelog
 
+### Version 0.3.3
+- Fix crash when selecting edge of preview
+
 ### Version 0.3.2
 - Add preview
 - More quick create options
