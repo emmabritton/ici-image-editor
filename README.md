@@ -4,10 +4,9 @@ Used to edit ICI images (`IndexedImage` and `AnimatedIndexedImage`) from [ici-fi
 
 ## Controls
 
-Undo - Ctrl+Z, Cmd+Z
-Redo - Shift+Ctrl+Z, Shift+Cmd+Z, Ctrl+Y, Cmd+Y
-
-Save single frame - Holding Shift when saving
+* Undo - Ctrl+Z, Cmd+Z
+* Redo - Shift+Ctrl+Z, Shift+Cmd+Z, Ctrl+Y, Cmd+Y
+* Save single frame when timeline is visible - Hold Shift when saving
 
 ## Screenshots
 
