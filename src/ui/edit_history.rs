@@ -411,7 +411,7 @@ mod test {
             vec![0; 3 * 3],
         )
         .unwrap();
-        let mut history = EditHistory::new(vec![original_image.clone()]);
+        let mut history = EditHistory::new(vec![original_image]);
         history.add_pencil((0, 0), 1).unwrap();
         assert_eq!(history.events, vec![q_pc(0, 1)]);
         assert_eq!(history.index, 1);
@@ -444,7 +444,7 @@ mod test {
             vec![0; 3 * 3],
         )
         .unwrap();
-        let mut history = EditHistory::new(vec![original_image.clone()]);
+        let mut history = EditHistory::new(vec![original_image]);
         assert_eq!(history.get_current_image().get_pixel(0).unwrap(), 0);
         assert_eq!(history.get_current_image().get_pixel(4).unwrap(), 0);
         history.add_pencil((0, 0), 1).unwrap();
@@ -475,7 +475,7 @@ mod test {
         ];
         let image1 = IndexedImage::new(3, 3, palette.clone(), vec![1; 9]).unwrap();
         let image2 = IndexedImage::new(3, 3, palette.clone(), vec![2; 9]).unwrap();
-        let image3 = IndexedImage::new(3, 3, palette.clone(), vec![3; 9]).unwrap();
+        let image3 = IndexedImage::new(3, 3, palette, vec![3; 9]).unwrap();
         let mut history = EditHistory::new(vec![image1.clone(), image2.clone(), image3.clone()]);
         assert_eq!(history.active_frame, 0);
         assert_eq!(
@@ -491,10 +491,7 @@ mod test {
         history.remove_frame().unwrap();
         assert_eq!(history.active_frame, 0);
         assert_eq!(history.edited_images, vec![image2.clone(), image3.clone()]);
-        assert_eq!(
-            history.base_images,
-            vec![image1.clone(), image2.clone(), image3.clone()]
-        );
+        assert_eq!(history.base_images, vec![image1, image2, image3]);
         assert_eq!(history.events, vec![FrameRemove(0)]);
         assert_eq!(history.index, 1);
     }
@@ -509,7 +506,7 @@ mod test {
         ];
         let image1 = IndexedImage::new(3, 3, palette.clone(), vec![1; 9]).unwrap();
         let image2 = IndexedImage::new(3, 3, palette.clone(), vec![2; 9]).unwrap();
-        let image3 = IndexedImage::new(3, 3, palette.clone(), vec![3; 9]).unwrap();
+        let image3 = IndexedImage::new(3, 3, palette, vec![3; 9]).unwrap();
         let mut history = EditHistory::new(vec![image1.clone(), image2.clone(), image3.clone()]);
         assert_eq!(history.active_frame, 0);
         assert_eq!(
@@ -537,10 +534,7 @@ mod test {
         history.remove_frame().unwrap();
         assert_eq!(history.active_frame, 1);
         assert_eq!(history.edited_images, vec![image1.clone(), image3.clone()]);
-        assert_eq!(
-            history.base_images,
-            vec![image1.clone(), image2.clone(), image3.clone()]
-        );
+        assert_eq!(history.base_images, vec![image1, image2, image3]);
         assert_eq!(history.events, vec![FrameSelect(1), FrameRemove(1)]);
         assert_eq!(history.index, 2);
     }
@@ -555,7 +549,7 @@ mod test {
         ];
         let image1 = IndexedImage::new(3, 3, palette.clone(), vec![1; 9]).unwrap();
         let image2 = IndexedImage::new(3, 3, palette.clone(), vec![2; 9]).unwrap();
-        let image3 = IndexedImage::new(3, 3, palette.clone(), vec![3; 9]).unwrap();
+        let image3 = IndexedImage::new(3, 3, palette, vec![3; 9]).unwrap();
         let mut history = EditHistory::new(vec![image1.clone(), image2.clone(), image3.clone()]);
         assert_eq!(history.active_frame, 0);
         assert_eq!(
@@ -583,10 +577,7 @@ mod test {
         history.remove_frame().unwrap();
         assert_eq!(history.active_frame, 1);
         assert_eq!(history.edited_images, vec![image1.clone(), image2.clone()]);
-        assert_eq!(
-            history.base_images,
-            vec![image1.clone(), image2.clone(), image3.clone()]
-        );
+        assert_eq!(history.base_images, vec![image1, image2, image3]);
         assert_eq!(history.events, vec![FrameSelect(2), FrameRemove(2)]);
         assert_eq!(history.index, 2);
     }
@@ -600,12 +591,12 @@ mod test {
             GREEN.to_ici(),
         ];
         let image1 = IndexedImage::new(3, 3, palette.clone(), vec![1; 9]).unwrap();
-        let image2 = IndexedImage::new(3, 3, palette.clone(), vec![0; 9]).unwrap();
+        let image2 = IndexedImage::new(3, 3, palette, vec![0; 9]).unwrap();
         let mut history = EditHistory::new(vec![image1.clone()]);
         history.add_blank_frame().unwrap();
         assert_eq!(history.active_frame, 1);
         assert_eq!(history.edited_images, vec![image1.clone(), image2.clone()]);
-        assert_eq!(history.base_images, vec![image1.clone()]);
+        assert_eq!(history.base_images, vec![image1]);
         assert_eq!(history.events, vec![q_ai(0, &image2)]);
         assert_eq!(history.index, 1);
         assert_eq!(history.current_image, image2)
@@ -619,7 +610,7 @@ mod test {
             RED.to_ici(),
             GREEN.to_ici(),
         ];
-        let image1 = IndexedImage::new(3, 3, palette.clone(), vec![1; 9]).unwrap();
+        let image1 = IndexedImage::new(3, 3, palette, vec![1; 9]).unwrap();
         let mut history = EditHistory::new(vec![image1.clone()]);
         history.add_duplicate_frame().unwrap();
         assert_eq!(history.active_frame, 1);
@@ -634,8 +625,8 @@ mod test {
     fn palette_swap() {
         let orig_palette = vec![TRANSPARENT.to_ici(), BLUE.to_ici()];
         let new_palette = vec![TRANSPARENT.to_ici(), RED.to_ici()];
-        let image1 = IndexedImage::new(3, 3, orig_palette.clone(), vec![1; 9]).unwrap();
-        let mut history = EditHistory::new(vec![image1.clone(), image1.clone()]);
+        let image1 = IndexedImage::new(3, 3, orig_palette, vec![1; 9]).unwrap();
+        let mut history = EditHistory::new(vec![image1.clone(), image1]);
         assert_eq!(history.current_image.get_pixel(0).unwrap(), 1);
         assert_eq!(history.current_image.get_color(1).unwrap(), BLUE.to_ici());
         assert_eq!(

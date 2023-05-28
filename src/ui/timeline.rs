@@ -122,7 +122,7 @@ impl UiElement for Timeline {
                     ),
                     fill(self.background),
                 );
-                graphics.draw_indexed_image((x, y), &frame);
+                graphics.draw_indexed_image((x, y), frame);
                 if self.selected == i {
                     graphics.draw_rect(
                         Rect::new_with_size(

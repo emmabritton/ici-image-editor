@@ -115,7 +115,7 @@ impl Canvas {
     }
 
     pub fn set_color_index(&mut self, idx: u8) {
-        if let Some(color) = self.image.get_color(idx).ok() {
+        if let Ok(color) = self.image.get_color(idx) {
             self.cursor_color = color.to_color();
             self.selected_color_idx = idx;
         }

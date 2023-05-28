@@ -208,12 +208,14 @@ impl Editor {
                 let is_animated = path.contains(".ica");
                 let bytes = fs::read(path).expect("Reading image from file");
                 let (image, pal) = if is_animated {
-                    let (image,pal) = AnimatedIndexedImage::from_file_contents(&bytes).expect("Reading animated image data");
+                    let (image, pal) = AnimatedIndexedImage::from_file_contents(&bytes)
+                        .expect("Reading animated image data");
                     speed.set_content(&image.get_per_frame().to_string());
                     (image.as_images(), pal)
                 } else {
-                    let (image,pal)=  IndexedImage::from_file_contents(&bytes).expect("Reading image data");
-                    (vec![image],pal)
+                    let (image, pal) =
+                        IndexedImage::from_file_contents(&bytes).expect("Reading image data");
+                    (vec![image], pal)
                 };
                 if pal != FilePalette::Colors {
                     panic!("Currently {pal:?} isn't supported");
@@ -313,8 +315,7 @@ impl Editor {
                 let frames = self.history.get_images();
                 let pixels = frames
                     .iter()
-                    .map(|i| i.get_pixels().to_vec())
-                    .flatten()
+                    .flat_map(|i| i.get_pixels().to_vec())
                     .collect();
                 let image = AnimatedIndexedImage::new(
                     frames[0].width(),
