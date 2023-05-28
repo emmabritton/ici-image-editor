@@ -76,7 +76,12 @@ impl Scene<SceneResult, SceneName> for Menu {
             self.result = Push(false, SceneName::NewImage);
         }
         if self.load_button.on_mouse_click(xy) {
-            if let Some(path) = file_dialog(&None, &[("IndexedImage", "ici")]).pick_file() {
+            if let Some(path) = file_dialog(
+                &None,
+                &[("IndexedImage", "ici"), ("AnimatedIndexedImage", "ica")],
+            )
+            .pick_file()
+            {
                 self.result = Push(
                     false,
                     SceneName::Editor(EditorDetails::Open(path.to_string_lossy().to_string())),

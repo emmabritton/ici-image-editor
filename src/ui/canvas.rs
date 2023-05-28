@@ -1,5 +1,5 @@
 use crate::graphics_shapes::coord;
-use crate::ui::edit_history::FrameHistory;
+use crate::ui::edit_history::EditHistory;
 use log::error;
 use pixels_graphics_lib::prelude::*;
 
@@ -15,13 +15,14 @@ pub enum Tool {
 pub struct Canvas {
     bounds: Rect,
     inner_bounds: Rect,
-    frame: FrameHistory,
+    image: IndexedImage,
     screen_px_per_image_px: usize,
     trans_background_colors: (Color, Color),
     cursor_color: Color,
     selected_color_idx: u8,
     tool: Tool,
     first_click_at: Option<(u8, u8)>,
+    state: ElementState,
 }
 
 impl Canvas {
@@ -29,15 +30,14 @@ impl Canvas {
         Self {
             bounds: Rect::new_with_size(xy, width, height),
             inner_bounds: Rect::new_with_size(xy, 0, 0),
-            frame: FrameHistory::new(
-                IndexedImage::new(1, 1, vec![IciColor::transparent()], vec![0]).unwrap(),
-            ),
+            image: IndexedImage::new(1, 1, vec![IciColor::transparent()], vec![0]).unwrap(),
             screen_px_per_image_px: 1,
             trans_background_colors: (LIGHT_GRAY, DARK_GRAY),
             cursor_color: RED,
             selected_color_idx: 1,
             tool: Tool::Pencil,
             first_click_at: None,
+            state: ElementState::Normal,
         }
     }
 }
@@ -46,14 +46,14 @@ impl Canvas {
     pub fn set_image(&mut self, image: IndexedImage) {
         let width = image.width() as usize;
         let height = image.height() as usize;
-        self.frame = FrameHistory::new(image);
+        self.image = image;
         let side = width.max(height);
         let length = self.bounds.width().min(self.bounds.height());
         self.screen_px_per_image_px = length / side;
         self.inner_bounds = Rect::new_with_size(
             (0, 0),
-            width * self.screen_px_per_image_px,
-            height * self.screen_px_per_image_px,
+            width * self.screen_px_per_image_px - 1,
+            height * self.screen_px_per_image_px - 1,
         );
         let max_width = self.bounds.width() / 2;
         let max_height = self.bounds.height() / 2;
@@ -66,39 +66,35 @@ impl Canvas {
     }
 
     pub fn get_image(&self) -> &IndexedImage {
-        self.frame.get_current_image()
+        &self.image
     }
 
-    pub fn set_palette(&mut self, palette: &[IciColor]) -> Result<(), IndexedImageError> {
-        self.frame.add_palette(palette)
-    }
-
-    pub fn on_mouse_down(&mut self, mouse_xy: Coord) {
-        if self.inner_bounds.contains(mouse_xy) {
+    pub fn on_mouse_down(&mut self, mouse_xy: Coord, edit_history: &mut EditHistory) -> bool {
+        if self.inner_bounds.contains(mouse_xy) && self.state == ElementState::Normal {
             let (x, y) = self.mouse_to_image(mouse_xy);
-            // if self.image.get_pixel_index(x, y).is_ok() {
             if self.tool == Tool::Pencil {
-                self.frame
+                edit_history
                     .add_pencil((x, y), self.selected_color_idx)
                     .unwrap();
+                return true;
             } else if self.first_click_at.is_none() {
                 self.first_click_at = Some((x, y));
             }
-            // }
         }
+        false
     }
 
-    pub fn on_mouse_up(&mut self, mouse_xy: Coord) {
-        if self.inner_bounds.contains(mouse_xy) {
+    pub fn on_mouse_up(&mut self, mouse_xy: Coord, edit_history: &mut EditHistory) {
+        if self.inner_bounds.contains(mouse_xy) && self.state == ElementState::Normal {
             let (x, y) = self.mouse_to_image(mouse_xy);
             let result = match (self.tool, self.first_click_at) {
                 (Tool::Line, Some(start)) => {
-                    self.frame.add_line(start, (x, y), self.selected_color_idx)
+                    edit_history.add_line(start, (x, y), self.selected_color_idx)
                 }
                 (Tool::Rect, Some(start)) => {
-                    self.frame.add_rect(start, (x, y), self.selected_color_idx)
+                    edit_history.add_rect(start, (x, y), self.selected_color_idx)
                 }
-                (Tool::Fill, Some(start)) => self.frame.add_fill(start, self.selected_color_idx),
+                (Tool::Fill, Some(start)) => edit_history.add_fill(start, self.selected_color_idx),
                 _ => Ok(()),
             };
             if let Err(e) = result {
@@ -106,14 +102,6 @@ impl Canvas {
             }
         }
         self.first_click_at = None;
-    }
-
-    pub fn on_scroll(&mut self, _xy: Coord, _x_diff: isize, _y_diff: isize) {}
-
-    pub fn on_mouse_hover(&mut self, _timing: &Timing, _xy: Coord) {}
-
-    pub fn clear(&mut self) -> Result<(), IndexedImageError> {
-        self.frame.add_clear()
     }
 
     #[allow(unused)] //will be one day
@@ -127,7 +115,7 @@ impl Canvas {
     }
 
     pub fn set_color_index(&mut self, idx: u8) {
-        if let Some(color) = self.frame.get_color(idx) {
+        if let Some(color) = self.image.get_color(idx).ok() {
             self.cursor_color = color.to_color();
             self.selected_color_idx = idx;
         }
@@ -145,16 +133,18 @@ impl Canvas {
         self.tool = tool;
     }
 
-    pub fn undo(&mut self) -> Result<(), IndexedImageError> {
-        self.frame.undo()
-    }
-
-    pub fn redo(&mut self) -> Result<(), IndexedImageError> {
-        self.frame.redo()
-    }
-
     pub fn get_palette(&self) -> &[IciColor] {
-        self.frame.get_current_image().get_palette()
+        self.image.get_palette()
+    }
+
+    pub fn get_usage_state(&self) -> (Tool, Color, u8) {
+        (self.tool, self.cursor_color, self.selected_color_idx)
+    }
+
+    pub fn set_usage_state(&mut self, (tool, cursor, selected): (Tool, Color, u8)) {
+        self.tool = tool;
+        self.cursor_color = cursor;
+        self.selected_color_idx = selected;
     }
 }
 
@@ -169,14 +159,33 @@ impl Canvas {
     fn draw_cursor_on_image(&self, graphics: &mut Graphics, xy: (u8, u8)) {
         let top_left =
             (Coord::from(xy) * self.screen_px_per_image_px) + self.inner_bounds.top_left();
-        graphics.draw_rect(
-            Rect::new_with_size(
+        if self.cursor_color.is_transparent() {
+            let mut color = BLACK;
+            color.a = 125;
+            graphics.draw_line(
                 top_left,
-                self.screen_px_per_image_px - 1,
-                self.screen_px_per_image_px - 1,
-            ),
-            stroke(self.cursor_color),
-        );
+                top_left
+                    + (
+                        self.screen_px_per_image_px - 1,
+                        self.screen_px_per_image_px - 1,
+                    ),
+                color,
+            );
+            graphics.draw_line(
+                top_left + (self.screen_px_per_image_px - 1, 0),
+                top_left + (0, self.screen_px_per_image_px - 1),
+                color,
+            );
+        } else {
+            graphics.draw_rect(
+                Rect::new_with_size(
+                    top_left,
+                    self.screen_px_per_image_px - 1,
+                    self.screen_px_per_image_px - 1,
+                ),
+                stroke(self.cursor_color),
+            );
+        }
     }
 
     fn draw_img_px(
@@ -261,22 +270,20 @@ impl UiElement for Canvas {
             }
         };
 
-        let orig_trans = graphics.get_translate();
-        graphics.set_translate(self.inner_bounds.top_left());
+        let orig_trans = graphics.set_translate(self.inner_bounds.top_left());
 
-        let image = self.frame.get_current_image();
-        for img_y in 0..image.height() {
-            for img_x in 0..image.width() {
-                self.draw_img_px(graphics, image, img_x, img_y, trans_color);
+        for img_y in 0..self.image.height() {
+            for img_x in 0..self.image.width() {
+                self.draw_img_px(graphics, &self.image, img_x, img_y, trans_color);
                 swap_color(&mut trans_color);
             }
-            if image.width() % 2 == 0 {
+            if self.image.width() % 2 == 0 {
                 swap_color(&mut trans_color);
             }
         }
 
         graphics.set_translate(orig_trans);
-        if self.inner_bounds.contains(mouse_xy) {
+        if self.inner_bounds.contains(mouse_xy) && self.state == ElementState::Normal {
             match (self.tool, self.first_click_at) {
                 (Tool::Line, Some(start)) => self.temp_line(graphics, start, mouse_xy),
                 (Tool::Rect, Some(start)) => self.temp_rect(graphics, start, mouse_xy),
@@ -287,11 +294,11 @@ impl UiElement for Canvas {
 
     fn update(&mut self, _: &Timing) {}
 
-    fn set_state(&mut self, _: ElementState) {
-        unimplemented!("not supported for canvas")
+    fn set_state(&mut self, state: ElementState) {
+        self.state = state;
     }
 
     fn get_state(&self) -> ElementState {
-        ElementState::Normal
+        self.state
     }
 }

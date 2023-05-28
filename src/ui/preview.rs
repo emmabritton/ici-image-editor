@@ -36,7 +36,7 @@ impl Preview {
         self.image = image;
     }
 
-    pub fn on_mouse_click(&mut self, xy: Coord) {
+    pub fn on_mouse_click(&mut self, xy: Coord) -> Color {
         if Rect::new_with_size(
             self.bounds.top_left(),
             self.bounds.width(),
@@ -45,8 +45,16 @@ impl Preview {
         .contains(xy)
         {
             let color_width = self.bounds.width() / COLORS.len();
-            self.background = (((xy - self.bounds.top_left()).x / color_width as isize) as usize).max(0).min(3);
+            self.background = (((xy - self.bounds.top_left()).x / color_width as isize) as usize)
+                .max(0)
+                .min(3);
         }
+        COLORS[self.background]
+    }
+
+    pub fn select_dark_background(&mut self) -> Color {
+        self.background = 1;
+        COLORS[self.background]
     }
 }
 
