@@ -1,11 +1,6 @@
 # ICI Image Editor
 
-Used to edit ICI images (`IndexedImage`) from [ici-files](https://github.com/emmabritton/ici-files)
-
-## Screenshots
-
-![Editor](https://github.com/emmabritton/ici-image-editor/raw/main/.github/screenshots/editor.png)
-![Edit Palette](https://github.com/emmabritton/ici-image-editor/raw/main/.github/screenshots/palette.png)
+Used to edit ICI images (`IndexedImage` and `AnimatedIndexedImage`) from [ici-files](https://github.com/emmabritton/ici-files)
 
 ## Controls
 
@@ -14,9 +9,17 @@ Redo - Shift+Ctrl+Z, Shift+Cmd+Z, Ctrl+Y, Cmd+Y
 
 Save single frame - Holding Shift when saving
 
+## Screenshots
+
+![Editor](https://github.com/emmabritton/ici-image-editor/raw/main/.github/screenshots/image.png)
+![Editor with timeline](https://github.com/emmabritton/ici-image-editor/raw/main/.github/screenshots/animated.png)
+![New file](https://github.com/emmabritton/ici-image-editor/raw/main/.github/screenshots/new_image.png)
+![Palette editor](https://github.com/emmabritton/ici-image-editor/raw/main/.github/screenshots/palette.png)
+
 ## TODO
 - Support images bigger than 64x64
 - New palette system
 - Confirmation before clear/close
 - Animation
 - Canvas scrolling
+- Support play type

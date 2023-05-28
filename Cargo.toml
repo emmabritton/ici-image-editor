@@ -5,9 +5,9 @@ edition = "2021"
 authors = ["Emma Britton <emmabritton@pm.me>"]
 description = "Simple image editor for ICI files"
 license-file = "LICENSE"
-repository = "https://github.com/raybritton/ici-image-editor"
+repository = "https://github.com/emmabritton/ici-image-editor"
 readme = "README.md"
-homepage = "https://github.com/raybritton/ici-image-editor"
+homepage = "https://github.com/emmabritton/ici-image-editor"
 
 [dependencies]
 pixels-graphics-lib = "0.11.2"
