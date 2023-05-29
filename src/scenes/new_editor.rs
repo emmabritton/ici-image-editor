@@ -552,12 +552,11 @@ impl Scene<SceneResult, SceneName> for Editor {
             self.history.add_clear().unwrap();
         }
         if self.save.on_mouse_click(xy) {
-            let idx = if keys.contains(&&VirtualKeyCode::LShift) {
+            let idx = if keys.contains(&&VirtualKeyCode::LShift) || self.history.frame_count() == 1{
                 Some(self.history.active_frame())
             } else {
                 None
             };
-            self.open_save_as(idx);
             if self.filepath.is_some() {
                 self.save_file(idx);
             } else {
@@ -565,7 +564,7 @@ impl Scene<SceneResult, SceneName> for Editor {
             }
         }
         if self.save_as.on_mouse_click(xy) {
-            let idx = if keys.contains(&&VirtualKeyCode::LShift) {
+            let idx = if keys.contains(&&VirtualKeyCode::LShift)  || self.history.frame_count() == 1{
                 Some(self.history.active_frame())
             } else {
                 None
