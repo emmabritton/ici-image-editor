@@ -47,7 +47,9 @@ impl Timeline {
 
     pub fn on_scroll(&mut self, mouse_xy: Coord, x_diff: isize) {
         if self.bounds.contains(mouse_xy) && self.state == ElementState::Normal {
-            let maximum = (self.frame_size.0 * self.frames.len()) as isize;
+            let max_visible_count = self.bounds.width() / (self.frame_size.0 + 2);
+            let last_frame = self.frames.len() as isize - max_visible_count as isize;
+            let maximum = self.frame_size.0 as isize * last_frame.min(0);
             self.offset = ((self.offset as isize) + x_diff).max(0).min(maximum) as usize
         }
     }

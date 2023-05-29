@@ -344,7 +344,7 @@ impl Editor {
             self.timeline = Timeline::new(Rect::new_with_size(
                 (
                     self.preview.bounds().right() + PADDING,
-                    self.play_pause.bounds().bottom() - (image_height as isize + 4 + PADDING),
+                    self.play_pause.bounds().bottom() - (image_height as isize + PADDING),
                 ),
                 200,
                 image_height + 4,
@@ -354,7 +354,7 @@ impl Editor {
                     self.edit_palette.bounds().bottom_right().x + PADDING,
                     self.edit_palette.bounds().top_left().y,
                 ),
-                (210, 200 - (image_height * 2)),
+                (210, (self.timeline.bounds().top() - self.edit_palette.bounds().top_left().y - PADDING) as usize),
             );
             self.play_pause.set_state(ElementState::Normal);
         } else {
