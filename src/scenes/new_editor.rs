@@ -203,9 +203,11 @@ impl Editor {
             (TOOL_RECT, rect_tool),
             (TOOL_FILL, fill_tool),
         ]);
+        let mut filepath = None;
         let frames = match details {
             EditorDetails::Open(path) => {
                 let is_animated = path.contains(".ica");
+                filepath = Some(path.clone());
                 let bytes = fs::read(path).expect("Reading image from file");
                 let (image, pal) = if is_animated {
                     let (image, pal) = AnimatedIndexedImage::from_file_contents(&bytes)
@@ -256,10 +258,11 @@ impl Editor {
         );
         palette.set_palette(canvas.get_image().get_palette());
         palette.set_color_index(1);
-        let preview = Preview::new(Rect::new_with_size((4, 122), 64, 73));
+        let mut preview = Preview::new(Rect::new_with_size((4, 122), 64, 73));
         let mut timeline = Timeline::new(Rect::new_with_size((-1, -1), 0, 0));
         timeline.set_frames(frames.clone(), 0);
         let history = EditHistory::new(frames.clone());
+        preview.set_image(history.get_current_image().clone());
         let mut editor = Self {
             timeline,
             result: Nothing,
@@ -277,7 +280,7 @@ impl Editor {
             alert,
             palette,
             pending_alert_action: None,
-            filepath: None,
+            filepath,
             canvas,
             preview,
             last_undo: Instant::now(),

@@ -28,7 +28,6 @@ pub enum EditEvent {
 pub struct EditHistory {
     base_images: Vec<IndexedImage>,
     edited_images: Vec<IndexedImage>,
-    current_image: IndexedImage,
     events: Vec<EditEvent>,
     /// current position in events, should be events.len() unless undo is used
     index: usize,
@@ -37,11 +36,9 @@ pub struct EditHistory {
 
 impl EditHistory {
     pub fn new(base_images: Vec<IndexedImage>) -> Self {
-        let current_image = base_images[0].clone();
         let edited_images = base_images.clone();
         Self {
             base_images,
-            current_image,
             edited_images,
             events: vec![],
             index: 0,
@@ -74,7 +71,7 @@ impl EditHistory {
     }
 
     pub fn get_current_image(&self) -> &IndexedImage {
-        &self.current_image
+        &self.edited_images[self.active_frame]
     }
 
     pub fn get_image(&self, idx: usize) -> &IndexedImage {
@@ -100,7 +97,7 @@ impl EditHistory {
                 color_idx,
             } = &self.events[0]
             {
-                let color = self.current_image.get_color(*color_idx).unwrap();
+                let color = self.edited_images[self.active_frame].get_color(*color_idx).unwrap();
                 if pixel_idxs.len() == 1 && color.to_color().brightness() > 0.95 {
                     return true;
                 }
@@ -122,7 +119,7 @@ impl EditHistory {
 
         for point in points {
             let i = self
-                .current_image
+                .edited_images[self.active_frame]
                 .get_pixel_index(point.x as u8, point.y as u8)?;
             pixels.push(i);
         }
@@ -145,16 +142,16 @@ impl EditHistory {
         let bottom_right = ((start.0).max(end.0), (start.1).max(end.1));
 
         for x in top_left.0..bottom_right.0 {
-            let i = self.current_image.get_pixel_index(x, top_left.1)?;
+            let i = self.edited_images[self.active_frame].get_pixel_index(x, top_left.1)?;
             pixels.insert(i);
-            let i = self.current_image.get_pixel_index(x, bottom_right.1)?;
+            let i = self.edited_images[self.active_frame].get_pixel_index(x, bottom_right.1)?;
             pixels.insert(i);
         }
 
         for y in top_left.1..=bottom_right.1 {
-            let i = self.current_image.get_pixel_index(top_left.0, y)?;
+            let i = self.edited_images[self.active_frame].get_pixel_index(top_left.0, y)?;
             pixels.insert(i);
-            let i = self.current_image.get_pixel_index(bottom_right.0, y)?;
+            let i = self.edited_images[self.active_frame].get_pixel_index(bottom_right.0, y)?;
             pixels.insert(i);
         }
 
@@ -166,7 +163,7 @@ impl EditHistory {
     }
 
     pub fn add_fill(&mut self, xy: (u8, u8), color: u8) -> Result<(), IndexedImageError> {
-        let pixels = fill_pixels(&self.current_image, xy)?;
+        let pixels = fill_pixels(&self.edited_images[self.active_frame], xy)?;
         let event = EditEvent::PixelsChange {
             pixel_idxs: pixels,
             color_idx: color,
@@ -175,8 +172,8 @@ impl EditHistory {
     }
 
     pub fn add_pencil(&mut self, xy: (u8, u8), color: u8) -> Result<(), IndexedImageError> {
-        let i = self.current_image.get_pixel_index(xy.0, xy.1)?;
-        if self.current_image.get_pixel(i).unwrap() != color {
+        let i = self.edited_images[self.active_frame].get_pixel_index(xy.0, xy.1)?;
+        if self.edited_images[self.active_frame].get_pixel(i).unwrap() != color {
             let event = EditEvent::PixelsChange {
                 pixel_idxs: vec![i],
                 color_idx: color,
@@ -188,7 +185,7 @@ impl EditHistory {
     }
 
     pub fn add_clear(&mut self) -> Result<(), IndexedImageError> {
-        let size = self.current_image.width() as usize * self.current_image.height() as usize;
+        let size = self.edited_images[0].width() as usize * self.edited_images[0].height() as usize;
         let event = EditEvent::PixelsChange {
             pixel_idxs: (0..size).collect(),
             color_idx: 0,
@@ -197,7 +194,7 @@ impl EditHistory {
     }
 
     pub fn add_palette_change(&mut self, colors: &[IciColor]) -> Result<(), IndexedImageError> {
-        if self.current_image.get_palette() == colors {
+        if self.edited_images[0].get_palette() == colors {
             return Ok(());
         }
         let event = EditEvent::PaletteChange(colors.to_vec());
@@ -209,13 +206,13 @@ impl EditHistory {
             idx: self.active_frame,
             content: vec![
                 0;
-                self.current_image.width() as usize * self.current_image.height() as usize
+                self.edited_images[0].width() as usize * self.edited_images[0].height() as usize
             ],
         })
     }
 
     pub fn add_duplicate_frame(&mut self) -> Result<(), IndexedImageError> {
-        let pixels = self.current_image.get_pixels().to_vec();
+        let pixels = self.edited_images[self.active_frame].get_pixels().to_vec();
         self.add_event(EditEvent::FrameAdd {
             idx: self.active_frame,
             content: pixels,
@@ -243,7 +240,6 @@ impl EditHistory {
             swap(&mut self.events, &mut temp);
             self.events = temp.into_iter().take(self.index).collect();
         }
-        self.edited_images[self.active_frame] = self.current_image.clone();
         self.handle_edit_event(&event)?;
         self.events.push(event.clone());
         self.condense_pencil_events();
@@ -304,35 +300,31 @@ impl EditHistory {
                 color_idx,
             } => {
                 for idx in pixel_idxs {
-                    self.current_image.set_pixel(*idx, *color_idx)?;
+                    self.edited_images[self.active_frame].set_pixel(*idx, *color_idx)?;
                 }
             }
             EditEvent::PaletteChange(colors) => {
                 for image in &mut self.edited_images {
                     image.set_palette(colors)?;
                 }
-                self.current_image = self.edited_images[self.active_frame].clone();
             }
             EditEvent::FrameAdd { idx, content } => {
                 self.active_frame = idx + 1;
                 let image = IndexedImage::new(
-                    self.current_image.width(),
-                    self.current_image.height(),
-                    self.current_image.get_palette().to_vec(),
+                    self.edited_images[0].width(),
+                    self.edited_images[0].height(),
+                    self.edited_images[0].get_palette().to_vec(),
                     content.clone(),
                 )?;
                 self.edited_images.insert(self.active_frame, image.clone());
-                self.current_image = image;
             }
             EditEvent::FrameRemove(idx) => {
                 self.edited_images.remove(*idx);
                 if self.active_frame >= self.edited_images.len() {
                     self.active_frame = self.edited_images.len() - 1;
                 }
-                self.current_image = self.edited_images[self.active_frame].clone();
             }
             EditEvent::FrameSelect(idx) => {
-                self.current_image = self.edited_images[*idx].clone();
                 self.active_frame = *idx;
             }
         }
@@ -342,7 +334,6 @@ impl EditHistory {
     fn rebuild_current_image(&mut self) -> Result<(), IndexedImageError> {
         debug!("Rebuilding image");
         self.edited_images = self.base_images.clone();
-        self.current_image = self.base_images[0].clone();
         self.active_frame = 0;
         debug!(
             "Replaying {} events, history has {} in total",
@@ -600,7 +591,7 @@ mod test {
         assert_eq!(history.base_images, vec![image1]);
         assert_eq!(history.events, vec![q_ai(0, &image2)]);
         assert_eq!(history.index, 1);
-        assert_eq!(history.current_image, image2)
+        assert_eq!(history.get_current_image(), image2)
     }
 
     #[test]
@@ -619,7 +610,7 @@ mod test {
         assert_eq!(history.base_images, vec![image1.clone()]);
         assert_eq!(history.events, vec![q_ai(0, &image1)]);
         assert_eq!(history.index, 1);
-        assert_eq!(history.current_image, image1)
+        assert_eq!(history.get_current_image(), image1)
     }
 
     #[test]
@@ -628,8 +619,6 @@ mod test {
         let new_palette = vec![TRANSPARENT.to_ici(), RED.to_ici()];
         let image1 = IndexedImage::new(3, 3, orig_palette, vec![1; 9]).unwrap();
         let mut history = EditHistory::new(vec![image1.clone(), image1]);
-        assert_eq!(history.current_image.get_pixel(0).unwrap(), 1);
-        assert_eq!(history.current_image.get_color(1).unwrap(), BLUE.to_ici());
         assert_eq!(
             history.edited_images[0].get_color(1).unwrap(),
             BLUE.to_ici()
@@ -639,8 +628,6 @@ mod test {
             BLUE.to_ici()
         );
         history.add_palette_change(&new_palette).unwrap();
-        assert_eq!(history.current_image.get_pixel(0).unwrap(), 1);
-        assert_eq!(history.current_image.get_color(1).unwrap(), RED.to_ici());
         assert_eq!(history.edited_images[0].get_color(1).unwrap(), RED.to_ici());
         assert_eq!(history.edited_images[1].get_color(1).unwrap(), RED.to_ici());
     }
