@@ -343,6 +343,7 @@ impl EditHistory {
         debug!("Rebuilding image");
         self.edited_images = self.base_images.clone();
         self.current_image = self.base_images[0].clone();
+        self.active_frame = 0;
         debug!(
             "Replaying {} events, history has {} in total",
             self.index,
