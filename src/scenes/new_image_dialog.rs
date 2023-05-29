@@ -3,8 +3,6 @@ use crate::scenes::new_editor::EditorDetails;
 use crate::SceneName::Editor;
 use crate::SceneUpdateResult::*;
 use crate::{Scene, SceneName, SceneResult, SUR};
-use pixels_graphics_lib::prelude::Positioning::LeftCenter;
-use pixels_graphics_lib::prelude::WrappingStrategy::SpaceBeforeCol;
 use pixels_graphics_lib::prelude::*;
 use pixels_graphics_lib::ui::prelude::TextFilter::*;
 use pixels_graphics_lib::ui::prelude::*;
@@ -20,8 +18,8 @@ pub struct NewImageDialog {
     submit_button: Button,
     cancel_button: Button,
     background: ShapeCollection,
-    error_outline: Polyline,
-    error_message: Option<String>,
+    alert: Alert,
+    alert_visible: bool,
     quick_8: Button,
     quick_12: Button,
     quick_16: Button,
@@ -30,20 +28,19 @@ pub struct NewImageDialog {
     quick_48: Button,
     quick_64: Button,
     quick_8_16: Button,
-    error_pos: Coord,
     label: Text,
 }
 
 impl NewImageDialog {
-    pub fn new(width: usize, height: usize, style: &DialogStyle) -> Box<Self> {
-        let background = dialog_background(width, height, style);
+    pub fn new(width: usize, height: usize, style: &UiStyle) -> Box<Self> {
+        let background = dialog_background(width, height, &style.dialog);
         let width_label = Text::new(
             "Width (1..=64)",
-            TextPos::px(style.bounds.top_left() + (8, 8)),
+            TextPos::px(style.dialog.bounds.top_left() + (8, 8)),
             (WHITE, Normal),
         );
         let width_field = TextField::new(
-            style.bounds.top_left() + (8, 18),
+            style.dialog.bounds.top_left() + (8, 18),
             6,
             Normal,
             (None, None),
@@ -53,11 +50,11 @@ impl NewImageDialog {
         );
         let height_label = Text::new(
             "Height (1..=64)",
-            TextPos::px(style.bounds.top_left() + (8, 40)),
+            TextPos::px(style.dialog.bounds.top_left() + (8, 40)),
             (WHITE, Normal),
         );
         let height_field = TextField::new(
-            style.bounds.top_left() + (8, 50),
+            style.dialog.bounds.top_left() + (8, 50),
             6,
             Normal,
             (None, None),
@@ -66,32 +63,22 @@ impl NewImageDialog {
             &style.text_field,
         );
         let submit_button = Button::new(
-            style.bounds.top_left() + (138, 144),
+            style.dialog.bounds.top_left() + (138, 144),
             "Create",
             None,
             &style.button,
         );
         let cancel_button = Button::new(
-            style.bounds.top_left() + (8, 144),
+            style.dialog.bounds.top_left() + (8, 144),
             "Cancel",
             None,
             &style.button,
         );
-        let error_pos = style.bounds.top_left() + (16, 80);
-        let error_outline = Polyline::rounded_rect(
-            error_pos.x,
-            error_pos.y,
-            style.bounds.top_left().x + 180,
-            style.bounds.top_left().y + 120,
-            8,
-            RED,
-        )
-        .unwrap();
         let row1_y = 80;
         let row2_y = 100;
         let row3_y = 120;
         let quick_8 = Button::new(
-            style.bounds.top_left() + (8, row1_y),
+            style.dialog.bounds.top_left() + (8, row1_y),
             "8x8",
             Some(50),
             &style.button,
@@ -99,7 +86,7 @@ impl NewImageDialog {
         let quick_12 = Button::new(
             (
                 quick_8.bounds().bottom_right().x + 8,
-                style.bounds.top_left().y + row1_y,
+                style.dialog.bounds.top_left().y + row1_y,
             ),
             "12x12",
             Some(50),
@@ -108,14 +95,14 @@ impl NewImageDialog {
         let quick_16 = Button::new(
             (
                 quick_12.bounds().bottom_right().x + 8,
-                style.bounds.top_left().y + row1_y,
+                style.dialog.bounds.top_left().y + row1_y,
             ),
             "16x16",
             Some(50),
             &style.button,
         );
         let quick_24 = Button::new(
-            style.bounds.top_left() + (8, row2_y),
+            style.dialog.bounds.top_left() + (8, row2_y),
             "24x24",
             Some(50),
             &style.button,
@@ -123,7 +110,7 @@ impl NewImageDialog {
         let quick_32 = Button::new(
             (
                 quick_24.bounds().bottom_right().x + 8,
-                style.bounds.top_left().y + row2_y,
+                style.dialog.bounds.top_left().y + row2_y,
             ),
             "32x32",
             Some(50),
@@ -132,14 +119,14 @@ impl NewImageDialog {
         let quick_48 = Button::new(
             (
                 quick_32.bounds().bottom_right().x + 8,
-                style.bounds.top_left().y + row2_y,
+                style.dialog.bounds.top_left().y + row2_y,
             ),
             "48x48",
             Some(50),
             &style.button,
         );
         let quick_64 = Button::new(
-            style.bounds.top_left() + (8, row3_y),
+            style.dialog.bounds.top_left() + (8, row3_y),
             "64x64",
             Some(50),
             &style.button,
@@ -147,7 +134,7 @@ impl NewImageDialog {
         let quick_8_16 = Button::new(
             (
                 quick_64.bounds().bottom_right().x + 8,
-                style.bounds.top_left().y + row3_y,
+                style.dialog.bounds.top_left().y + row3_y,
             ),
             "8x16",
             Some(50),
@@ -155,9 +142,10 @@ impl NewImageDialog {
         );
         let label = Text::new(
             "Quick create",
-            TextPos::px(style.bounds.top_left() + (8, 68)),
+            TextPos::px(style.dialog.bounds.top_left() + (8, 68)),
             (WHITE, Normal),
         );
+        let alert = Alert::new_warning(&[""], width, height, &style.alert);
         Box::new(Self {
             result: Nothing,
             width_field,
@@ -167,8 +155,8 @@ impl NewImageDialog {
             submit_button,
             cancel_button,
             background,
-            error_outline,
-            error_message: None,
+            alert,
+            alert_visible: false,
             quick_8,
             quick_12,
             quick_16,
@@ -177,7 +165,6 @@ impl NewImageDialog {
             quick_48,
             quick_64,
             quick_8_16,
-            error_pos,
             label,
         })
     }
@@ -200,17 +187,23 @@ impl NewImageDialog {
             } else {
                 let width = width.unwrap();
                 let height = height.unwrap();
-                // if width > 64 || height > 64 {
-                //     Err(String::from("Too big, max 64"))
-                // } else {
                 Ok((width, height))
-                // }
             }
         }
     }
 
     fn set_success(&mut self, width: u8, height: u8) {
         self.result = Push(true, Editor(EditorDetails::New(width, height)));
+    }
+
+    fn submit(&mut self) {
+        match self.verify() {
+            Ok((w, h)) => self.set_success(w, h),
+            Err(err) => {
+                self.alert.change_text(&[&err]);
+                self.alert_visible = true;
+            },
+        }
     }
 }
 
@@ -233,21 +226,25 @@ impl Scene<SceneResult, SceneName> for NewImageDialog {
         self.width_field.render(graphics, mouse_xy);
         self.height_field.render(graphics, mouse_xy);
 
-        if let Some(text) = self.error_message.as_ref() {
-            self.error_outline.render(graphics);
-            // graphics.draw_image(self.error_pos + (6, 12), &self.error_icon);
-            graphics.draw_text(
-                text,
-                TextPos::px(self.error_pos + (26, 20)),
-                (RED, Normal, SpaceBeforeCol(18), LeftCenter),
-            )
+        if self.alert_visible {
+            self.alert.render(graphics, mouse_xy);
         }
     }
 
-    fn on_key_up(&mut self, key: VirtualKeyCode, _: Coord, _: &Vec<&VirtualKeyCode>) {
+    fn on_key_up(&mut self, key: VirtualKeyCode, _: Coord, held: &Vec<&VirtualKeyCode>) {
+        if self.alert_visible {
+            return;
+        }
         if key == VirtualKeyCode::Tab && self.width_field.is_focused() {
             self.width_field.unfocus();
             self.height_field.focus();
+        } else if self.height_field.is_focused() {
+            if key == VirtualKeyCode::Tab && held.contains(&&VirtualKeyCode::LShift) {
+                self.height_field.unfocus();
+                self.width_field.focus();
+            } else if key == VirtualKeyCode::Return {
+                self.submit();
+            }
         }
         self.width_field.on_key_press(key);
         self.height_field.on_key_press(key);
@@ -257,13 +254,16 @@ impl Scene<SceneResult, SceneName> for NewImageDialog {
         if button != MouseButton::Left {
             return;
         }
+        if self.alert_visible {
+            if self.alert.on_mouse_click(xy).is_some() {
+                self.alert_visible = false;
+            }
+            return;
+        }
         self.width_field.on_mouse_click(xy);
         self.height_field.on_mouse_click(xy);
         if self.submit_button.on_mouse_click(xy) {
-            match self.verify() {
-                Ok((w, h)) => self.set_success(w, h),
-                Err(err) => self.error_message = Some(err),
-            }
+            self.submit();
         }
         if self.cancel_button.on_mouse_click(xy) {
             self.result = Pop(None);
