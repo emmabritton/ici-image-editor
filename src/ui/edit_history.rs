@@ -97,7 +97,9 @@ impl EditHistory {
                 color_idx,
             } = &self.events[0]
             {
-                let color = self.edited_images[self.active_frame].get_color(*color_idx).unwrap();
+                let color = self.edited_images[self.active_frame]
+                    .get_color(*color_idx)
+                    .unwrap();
                 if pixel_idxs.len() == 1 && color.to_color().brightness() > 0.95 {
                     return true;
                 }
@@ -118,8 +120,7 @@ impl EditHistory {
         let mut pixels = vec![];
 
         for point in points {
-            let i = self
-                .edited_images[self.active_frame]
+            let i = self.edited_images[self.active_frame]
                 .get_pixel_index(point.x as u8, point.y as u8)?;
             pixels.push(i);
         }
@@ -206,7 +207,8 @@ impl EditHistory {
             idx: self.active_frame,
             content: vec![
                 0;
-                self.edited_images[0].width() as usize * self.edited_images[0].height() as usize
+                self.edited_images[0].width() as usize
+                    * self.edited_images[0].height() as usize
             ],
         })
     }
@@ -316,7 +318,7 @@ impl EditHistory {
                     self.edited_images[0].get_palette().to_vec(),
                     content.clone(),
                 )?;
-                self.edited_images.insert(self.active_frame, image.clone());
+                self.edited_images.insert(self.active_frame, image);
             }
             EditEvent::FrameRemove(idx) => {
                 self.edited_images.remove(*idx);
@@ -389,8 +391,8 @@ mod test {
         assert_eq!(history.active_frame, 0);
         assert_eq!(history.events, vec![]);
         assert_eq!(history.base_images, history.edited_images);
-        assert_eq!(history.base_images[0], history.current_image);
-        assert_eq!(original_image, history.current_image);
+        assert_eq!(history.base_images[0], history.get_current_image().clone());
+        assert_eq!(history.get_current_image(), &original_image);
         assert_eq!(history.index, 0);
     }
 
@@ -591,7 +593,7 @@ mod test {
         assert_eq!(history.base_images, vec![image1]);
         assert_eq!(history.events, vec![q_ai(0, &image2)]);
         assert_eq!(history.index, 1);
-        assert_eq!(history.get_current_image(), image2)
+        assert_eq!(history.get_current_image(), &image2)
     }
 
     #[test]
@@ -610,7 +612,7 @@ mod test {
         assert_eq!(history.base_images, vec![image1.clone()]);
         assert_eq!(history.events, vec![q_ai(0, &image1)]);
         assert_eq!(history.index, 1);
-        assert_eq!(history.get_current_image(), image1)
+        assert_eq!(history.get_current_image(), &image1)
     }
 
     #[test]
