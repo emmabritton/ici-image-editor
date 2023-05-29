@@ -354,7 +354,12 @@ impl Editor {
                     self.edit_palette.bounds().bottom_right().x + PADDING,
                     self.edit_palette.bounds().top_left().y,
                 ),
-                (210, (self.timeline.bounds().top() - self.edit_palette.bounds().top_left().y - PADDING) as usize),
+                (
+                    210,
+                    (self.timeline.bounds().top()
+                        - self.edit_palette.bounds().top_left().y
+                        - PADDING) as usize,
+                ),
             );
             self.play_pause.set_state(ElementState::Normal);
         } else {

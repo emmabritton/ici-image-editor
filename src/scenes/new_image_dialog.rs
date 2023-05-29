@@ -202,7 +202,7 @@ impl NewImageDialog {
             Err(err) => {
                 self.alert.change_text(&[&err]);
                 self.alert_visible = true;
-            },
+            }
         }
     }
 }
