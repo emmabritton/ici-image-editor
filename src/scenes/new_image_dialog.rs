@@ -39,7 +39,7 @@ impl NewImageDialog {
             TextPos::px(style.dialog.bounds.top_left() + (8, 8)),
             (WHITE, Normal),
         );
-        let width_field = TextField::new(
+        let mut width_field = TextField::new(
             style.dialog.bounds.top_left() + (8, 18),
             6,
             Normal,
@@ -146,6 +146,7 @@ impl NewImageDialog {
             (WHITE, Normal),
         );
         let alert = Alert::new_warning(&[""], width, height, &style.alert);
+        width_field.focus();
         Box::new(Self {
             result: Nothing,
             width_field,
