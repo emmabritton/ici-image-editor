@@ -5,6 +5,7 @@ use crate::ui::palette::PaletteView;
 use crate::{SceneName, SceneResult, SUR, WIDTH};
 
 use log::error;
+use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
 use pixels_graphics_lib::prelude::*;
 use pixels_graphics_lib::scenes::SceneUpdateResult::{Nothing, Pop};
 use pixels_graphics_lib::ui::prelude::TextFilter::Decimal;
@@ -155,7 +156,7 @@ impl Editor {
         let mut speed = TextField::new(
             FRAME_CONTROL + (FRAME_CONTROL_SPACING, FRAME_CONTROL_SPACING),
             6,
-            Normal,
+            TextSize::Normal,
             (None, Some(40)),
             "0.1",
             &[Decimal],
@@ -407,7 +408,7 @@ impl Scene<SceneResult, SceneName> for Editor {
         graphics.draw_text(
             &name,
             TextPos::px(NAME),
-            (WHITE, Normal, WrappingStrategy::Ellipsis(38)),
+            (WHITE, TextSize::Normal, WrappingStrategy::Ellipsis(38)),
         );
         graphics.draw_line((0, NAME_LINE_Y), (WIDTH as isize, NAME_LINE_Y), LIGHT_GRAY);
 
@@ -463,8 +464,8 @@ impl Scene<SceneResult, SceneName> for Editor {
         }
     }
 
-    fn on_key_up(&mut self, key: VirtualKeyCode, _: Coord, _: &Vec<&VirtualKeyCode>) {
-        self.speed.on_key_press(key);
+    fn on_key_up(&mut self, key: VirtualKeyCode, _: Coord, held: &Vec<&VirtualKeyCode>) {
+        self.speed.on_key_press(key, held);
     }
 
     fn on_mouse_down(&mut self, xy: Coord, button: MouseButton, _: &Vec<&VirtualKeyCode>) {

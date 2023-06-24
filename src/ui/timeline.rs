@@ -1,6 +1,6 @@
+use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
 use pixels_graphics_lib::prelude::*;
-use pixels_graphics_lib::ui::UiElement;
-use pixels_graphics_lib::Timing;
+use pixels_graphics_lib::ui::prelude::*;
 
 const PADDING: isize = 2;
 
@@ -104,6 +104,10 @@ impl Timeline {
 }
 
 impl UiElement for Timeline {
+    fn set_position(&mut self, _top_left: Coord) {
+        unimplemented!("Does not support moving")
+    }
+
     fn bounds(&self) -> &Rect {
         &self.bounds
     }

@@ -1,10 +1,9 @@
 use crate::SceneResult::SavePaletteData;
 use crate::{SceneName, SceneResult, SUR};
-use pixels_graphics_lib::buffer_graphics_lib::Graphics;
-use pixels_graphics_lib::prelude::Positioning::CenterTop;
-use pixels_graphics_lib::prelude::SceneUpdateResult::Nothing;
+use pixels_graphics_lib::buffer_graphics_lib::prelude::Positioning::CenterTop;
+use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
+use pixels_graphics_lib::prelude::SceneUpdateResult::*;
 use pixels_graphics_lib::prelude::*;
-use pixels_graphics_lib::scenes::SceneUpdateResult::Pop;
 use pixels_graphics_lib::ui::prelude::*;
 
 const WARN_ID: &[&str] = &["ID must be between", "0 and 65535"];
@@ -39,7 +38,7 @@ impl SavePaletteDataDialog {
         let title = Text::new(
             "Palette data?",
             TextPos::px(dialog_pos + (style.bounds.width() / 2, 8)),
-            (style.text, Normal, CenterTop),
+            (style.text, TextSize::Normal, CenterTop),
         );
         let save_no_data = Button::new(
             dialog_pos + (8, 25),
@@ -56,7 +55,7 @@ impl SavePaletteDataDialog {
         let id = TextField::new(
             dialog_pos + (100, 53),
             5,
-            Normal,
+            TextSize::Normal,
             (None, None),
             "",
             &[TextFilter::Numbers],
@@ -71,7 +70,7 @@ impl SavePaletteDataDialog {
         let name = TextField::new(
             dialog_pos + (8, 96),
             36,
-            Small,
+            TextSize::Small,
             (None, None),
             "",
             &[TextFilter::All],
@@ -124,9 +123,9 @@ impl Scene<SceneResult, SceneName> for SavePaletteDataDialog {
         }
     }
 
-    fn on_key_up(&mut self, key: VirtualKeyCode, _: Coord, _: &Vec<&VirtualKeyCode>) {
-        self.id.on_key_press(key);
-        self.name.on_key_press(key);
+    fn on_key_up(&mut self, key: VirtualKeyCode, _: Coord, held: &Vec<&VirtualKeyCode>) {
+        self.id.on_key_press(key, held);
+        self.name.on_key_press(key, held);
     }
 
     fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, _: &Vec<&VirtualKeyCode>) {

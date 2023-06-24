@@ -1,4 +1,6 @@
+use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
 use pixels_graphics_lib::prelude::*;
+use pixels_graphics_lib::ui::prelude::*;
 
 const SQUARE_SIZE: usize = 8;
 const SPACING: usize = 2;
@@ -64,6 +66,10 @@ impl PaletteView {
 }
 
 impl UiElement for PaletteView {
+    fn set_position(&mut self, _top_left: Coord) {
+        unimplemented!("Does not support moving")
+    }
+
     fn bounds(&self) -> &Rect {
         &self.bounds
     }

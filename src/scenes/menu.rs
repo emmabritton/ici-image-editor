@@ -1,16 +1,15 @@
+use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
 use crate::scenes::new_editor::EditorDetails;
 use crate::scenes::{file_dialog, BACKGROUND};
 use crate::SceneUpdateResult::{Nothing, Push};
 use crate::{Scene, SceneName, SceneResult, SUR};
-use pixels_graphics_lib::buffer_graphics_lib::image::Image;
-use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
 use pixels_graphics_lib::buffer_graphics_lib::text::wrapping::WrappingStrategy;
 use pixels_graphics_lib::buffer_graphics_lib::text::TextSize::Large;
-use pixels_graphics_lib::buffer_graphics_lib::Graphics;
-use pixels_graphics_lib::prelude::button::Button;
-use pixels_graphics_lib::prelude::*;
+use pixels_graphics_lib::ui::prelude::*;
 use pixels_graphics_lib::ui::styles::ButtonStyle;
 use pixels_graphics_lib::Timing;
+use pixels_graphics_lib::prelude::VirtualKeyCode;
+use pixels_graphics_lib::MouseButton;
 
 const LOGO_POS: Coord = Coord::new(10, 10);
 const NEW_POS: Coord = Coord::new(10, 50);
@@ -40,7 +39,7 @@ impl Menu {
         let logo = make_image(60, 40, |graphics| {
             graphics.draw_text(
                 "ici Image Editor",
-                Px(0, 0),
+                TextPos::Px(0, 0),
                 (WHITE, Large, WrappingStrategy::SpaceBeforeCol(7)),
             );
         })

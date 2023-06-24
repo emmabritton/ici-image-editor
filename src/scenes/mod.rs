@@ -1,5 +1,5 @@
 use directories::UserDirs;
-use pixels_graphics_lib::prelude::*;
+use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
 use rfd::FileDialog;
 use std::path::PathBuf;
 

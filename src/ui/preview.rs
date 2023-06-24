@@ -1,18 +1,10 @@
-use pixels_graphics_lib::buffer_graphics_lib::{color, Graphics};
-use pixels_graphics_lib::prelude::{
-    fill, Color, Coord, ElementState, IciColor, IndexedImage, Rect, Shape,
-};
-use pixels_graphics_lib::ui::UiElement;
-use pixels_graphics_lib::Timing;
+use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
+use pixels_graphics_lib::prelude::*;
+use pixels_graphics_lib::ui::prelude::*;
 
 const COLOR_BUTTON_HEIGHT: usize = 8;
 
-const COLORS: [Color; 4] = [
-    color::WHITE,
-    color::BLACK,
-    color::LIGHT_GRAY,
-    color::DARK_GRAY,
-];
+const COLORS: [Color; 4] = [WHITE, BLACK, LIGHT_GRAY, DARK_GRAY];
 
 #[derive(Debug)]
 pub struct Preview {
@@ -59,6 +51,10 @@ impl Preview {
 }
 
 impl UiElement for Preview {
+    fn set_position(&mut self, _top_left: Coord) {
+        unimplemented!("Does not support moving")
+    }
+
     fn bounds(&self) -> &Rect {
         &self.bounds
     }

@@ -2,9 +2,7 @@ use crate::ui::image_fill::fill_pixels;
 use fnv::FnvHashSet;
 #[cfg(not(test))]
 use log::debug;
-use pixels_graphics_lib::prelude::{
-    IciColor, IndexedImage, IndexedImageError, Line, Shape, ToColor,
-};
+use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
 use std::mem::swap;
 #[cfg(test)]
 use std::println as debug;

@@ -1,7 +1,9 @@
 use crate::graphics_shapes::coord;
 use crate::ui::edit_history::EditHistory;
 use log::error;
+use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
 use pixels_graphics_lib::prelude::*;
+use pixels_graphics_lib::ui::prelude::*;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum Tool {
@@ -256,6 +258,10 @@ impl Canvas {
 }
 
 impl UiElement for Canvas {
+    fn set_position(&mut self, _top_left: Coord) {
+        unimplemented!("Does not support moving")
+    }
+
     fn bounds(&self) -> &Rect {
         &self.bounds
     }
