@@ -9,8 +9,8 @@ use pixels_graphics_lib::ui::prelude::*;
 
 use std::fs;
 
-use std::str::FromStr;
 use crate::scenes::file_dialog;
+use std::str::FromStr;
 
 const PAL_POS: Coord = Coord::new(5, 48);
 const PAL_TILE_SIZE: usize = 6;

@@ -353,7 +353,6 @@ impl EditHistory {
 mod test {
     use super::*;
     use crate::ui::edit_history::EditEvent::*;
-    use pixels_graphics_lib::prelude::*;
 
     fn q_pc(idx: usize, color: u8) -> EditEvent {
         PixelsChange {
