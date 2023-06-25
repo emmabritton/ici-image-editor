@@ -1,4 +1,6 @@
+use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
 use pixels_graphics_lib::prelude::*;
+use pixels_graphics_lib::ui::prelude::*;
 
 const SQUARE_SIZE: usize = 8;
 const SPACING: usize = 2;
@@ -11,6 +13,7 @@ pub struct PaletteView {
     selected: u8,
     cols: usize,
     offset: isize,
+    state: ElementState,
 }
 
 impl PaletteView {
@@ -21,6 +24,7 @@ impl PaletteView {
             selected: 0,
             cols: 0,
             offset: 0,
+            state: ElementState::Normal,
         }
     }
 }
@@ -40,7 +44,7 @@ impl PaletteView {
     }
 
     pub fn on_mouse_click(&mut self, mouse_xy: Coord) -> bool {
-        if self.bounds.contains(mouse_xy) {
+        if self.bounds.contains(mouse_xy) && self.state == ElementState::Normal {
             let xy = mouse_xy - self.bounds.top_left();
             let x = xy.x / PER_SQUARE as isize;
             let y = (xy.y + self.offset) / PER_SQUARE as isize;
@@ -53,13 +57,19 @@ impl PaletteView {
         false
     }
 
-    pub fn on_scroll(&mut self, _xy: Coord, y_diff: isize) {
-        self.offset += y_diff;
-        self.offset = self.offset.clamp(0, 100);
+    pub fn on_scroll(&mut self, xy: Coord, y_diff: isize) {
+        if self.bounds.contains(xy) && self.state == ElementState::Normal {
+            self.offset += y_diff;
+            self.offset = self.offset.clamp(0, 100);
+        }
     }
 }
 
 impl UiElement for PaletteView {
+    fn set_position(&mut self, _top_left: Coord) {
+        unimplemented!("Does not support moving")
+    }
+
     fn bounds(&self) -> &Rect {
         &self.bounds
     }
@@ -104,11 +114,11 @@ impl UiElement for PaletteView {
 
     fn update(&mut self, _: &Timing) {}
 
-    fn set_state(&mut self, _: ElementState) {
-        unimplemented!("Palette always enabled")
+    fn set_state(&mut self, state: ElementState) {
+        self.state = state;
     }
 
     fn get_state(&self) -> ElementState {
-        ElementState::Normal
+        self.state
     }
 }

@@ -1,16 +1,16 @@
 [package]
 name = "image-editor"
-version = "0.3.3"
+version = "0.4.0"
 edition = "2021"
 authors = ["Emma Britton <emmabritton@pm.me>"]
 description = "Simple image editor for ICI files"
 license-file = "LICENSE"
-repository = "https://github.com/raybritton/ici-image-editor"
+repository = "https://github.com/emmabritton/ici-image-editor"
 readme = "README.md"
-homepage = "https://github.com/raybritton/ici-image-editor"
+homepage = "https://github.com/emmabritton/ici-image-editor"
 
 [dependencies]
-pixels-graphics-lib = "0.11.1"
+pixels-graphics-lib = "0.11.7"
 color-eyre = "0.6.2"
 log = "0.4.17"
 directories = "5.0.0"

@@ -1,6 +1,6 @@
 use crate::palettes::PaletteError::*;
 use crate::palettes::ParseIssue::*;
-use pixels_graphics_lib::prelude::*;
+use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;

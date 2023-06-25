@@ -1,18 +1,10 @@
-use pixels_graphics_lib::buffer_graphics_lib::{color, Graphics};
-use pixels_graphics_lib::prelude::{
-    fill, Color, Coord, ElementState, IciColor, IndexedImage, Rect, Shape,
-};
-use pixels_graphics_lib::ui::UiElement;
-use pixels_graphics_lib::Timing;
+use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
+use pixels_graphics_lib::prelude::*;
+use pixels_graphics_lib::ui::prelude::*;
 
 const COLOR_BUTTON_HEIGHT: usize = 8;
 
-const COLORS: [Color; 4] = [
-    color::WHITE,
-    color::BLACK,
-    color::LIGHT_GRAY,
-    color::DARK_GRAY,
-];
+const COLORS: [Color; 4] = [WHITE, BLACK, LIGHT_GRAY, DARK_GRAY];
 
 #[derive(Debug)]
 pub struct Preview {
@@ -36,7 +28,7 @@ impl Preview {
         self.image = image;
     }
 
-    pub fn on_mouse_click(&mut self, xy: Coord) {
+    pub fn on_mouse_click(&mut self, xy: Coord) -> Color {
         if Rect::new_with_size(
             self.bounds.top_left(),
             self.bounds.width(),
@@ -45,12 +37,24 @@ impl Preview {
         .contains(xy)
         {
             let color_width = self.bounds.width() / COLORS.len();
-            self.background = (((xy - self.bounds.top_left()).x / color_width as isize) as usize).max(0).min(3);
+            self.background = (((xy - self.bounds.top_left()).x / color_width as isize) as usize)
+                .max(0)
+                .min(3);
         }
+        COLORS[self.background]
+    }
+
+    pub fn select_dark_background(&mut self) -> Color {
+        self.background = 1;
+        COLORS[self.background]
     }
 }
 
 impl UiElement for Preview {
+    fn set_position(&mut self, _top_left: Coord) {
+        unimplemented!("Does not support moving")
+    }
+
     fn bounds(&self) -> &Rect {
         &self.bounds
     }

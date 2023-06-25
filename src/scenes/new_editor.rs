@@ -5,12 +5,15 @@ use crate::ui::palette::PaletteView;
 use crate::{SceneName, SceneResult, SUR, WIDTH};
 
 use log::error;
+use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
 use pixels_graphics_lib::prelude::*;
 use pixels_graphics_lib::scenes::SceneUpdateResult::{Nothing, Pop};
 use pixels_graphics_lib::ui::prelude::TextFilter::Decimal;
 use pixels_graphics_lib::ui::prelude::*;
 
+use crate::ui::edit_history::EditHistory;
 use crate::ui::preview::Preview;
+use crate::ui::timeline::Timeline;
 use std::fs;
 use std::ops::Add;
 use std::path::PathBuf;
@@ -56,13 +59,9 @@ pub struct Editor {
     close: Button,
     edit_palette: Button,
     speed: TextField,
-    #[allow(unused)] //will be one day
     play_pause: IconButton,
-    #[allow(unused)] //will be one day
     add_frame: IconButton,
-    #[allow(unused)] //will be one day
     remove_frame: IconButton,
-    #[allow(unused)] //will be one day
     copy_frame: IconButton,
     #[allow(unused)] //will be soon
     alert: Alert,
@@ -70,11 +69,14 @@ pub struct Editor {
     pending_alert_action: Option<AlertAction>,
     filepath: Option<String>,
     canvas: Canvas,
-    #[allow(unused)] //will be one day
-    frames: Vec<IndexedImage>,
     palette: PaletteView,
     last_undo: Instant,
     preview: Preview,
+    timeline: Timeline,
+    history: EditHistory,
+    is_playing: bool,
+    next_frame_swap: f64,
+    anim_frame_idx: usize,
 }
 
 impl Editor {
@@ -115,7 +117,7 @@ impl Editor {
             height,
             &style.alert,
         );
-        let mut add_frame = IconButton::new(
+        let add_frame = IconButton::new(
             FRAME_CONTROL,
             "Add frame",
             Positioning::Center,
@@ -124,7 +126,7 @@ impl Editor {
                 .0,
             &style.icon_button,
         );
-        let mut remove_frame = IconButton::new(
+        let remove_frame = IconButton::new(
             FRAME_CONTROL + (FRAME_CONTROL_SPACING, 0),
             "Remove frame",
             Positioning::Center,
@@ -133,7 +135,7 @@ impl Editor {
                 .0,
             &style.icon_button,
         );
-        let mut copy_frame = IconButton::new(
+        let copy_frame = IconButton::new(
             FRAME_CONTROL + (FRAME_CONTROL_SPACING * 2, 0),
             "Copy frame",
             Positioning::Center,
@@ -142,7 +144,7 @@ impl Editor {
                 .0,
             &style.icon_button,
         );
-        let mut play_pause = IconButton::new(
+        let play_pause = IconButton::new(
             FRAME_CONTROL + (0, FRAME_CONTROL_SPACING),
             "Play/Pause",
             Positioning::Center,
@@ -154,7 +156,7 @@ impl Editor {
         let mut speed = TextField::new(
             FRAME_CONTROL + (FRAME_CONTROL_SPACING, FRAME_CONTROL_SPACING),
             6,
-            Normal,
+            TextSize::Normal,
             (None, Some(40)),
             "0.1",
             &[Decimal],
@@ -202,27 +204,26 @@ impl Editor {
             (TOOL_RECT, rect_tool),
             (TOOL_FILL, fill_tool),
         ]);
-        let mut canvas = Canvas::new(
-            Coord::new(
-                edit_palette.bounds().bottom_right().x + PADDING,
-                edit_palette.bounds().top_left().y,
-            ),
-            (210, 200),
-        );
-        add_frame.set_state(ElementState::Disabled);
-        remove_frame.set_state(ElementState::Disabled);
-        copy_frame.set_state(ElementState::Disabled);
-        play_pause.set_state(ElementState::Disabled);
-        speed.set_state(ElementState::Disabled);
+        let mut filepath = None;
         let frames = match details {
             EditorDetails::Open(path) => {
+                let is_animated = path.contains(".ica");
+                filepath = Some(path.clone());
                 let bytes = fs::read(path).expect("Reading image from file");
-                let (image, pal) =
-                    IndexedImage::from_file_contents(&bytes).expect("Reading image data");
+                let (image, pal) = if is_animated {
+                    let (image, pal) = AnimatedIndexedImage::from_file_contents(&bytes)
+                        .expect("Reading animated image data");
+                    speed.set_content(&image.get_per_frame().to_string());
+                    (image.as_images(), pal)
+                } else {
+                    let (image, pal) =
+                        IndexedImage::from_file_contents(&bytes).expect("Reading image data");
+                    (vec![image], pal)
+                };
                 if pal != FilePalette::Colors {
                     panic!("Currently {pal:?} isn't supported");
                 }
-                vec![image]
+                image
             }
             EditorDetails::New(w, h) => {
                 vec![IndexedImage::new(
@@ -239,6 +240,14 @@ impl Editor {
             }
         };
 
+        let mut canvas = Canvas::new(
+            Coord::new(
+                edit_palette.bounds().bottom_right().x + PADDING,
+                edit_palette.bounds().top_left().y,
+            ),
+            (210, 200),
+        );
+
         canvas.set_color_index(1);
         canvas.set_image(frames[0].clone());
         let mut palette = PaletteView::new(
@@ -250,8 +259,13 @@ impl Editor {
         );
         palette.set_palette(canvas.get_image().get_palette());
         palette.set_color_index(1);
-        let preview = Preview::new(Rect::new_with_size((4, 122), 64, 73));
-        Box::new(Self {
+        let mut preview = Preview::new(Rect::new_with_size((4, 122), 64, 73));
+        let mut timeline = Timeline::new(Rect::new_with_size((-1, -1), 0, 0));
+        timeline.set_frames(frames.clone(), 0);
+        let history = EditHistory::new(frames.clone());
+        preview.set_image(history.get_current_image().clone());
+        let mut editor = Self {
+            timeline,
             result: Nothing,
             clear,
             tools,
@@ -267,32 +281,108 @@ impl Editor {
             alert,
             palette,
             pending_alert_action: None,
-            filepath: None,
+            filepath,
             canvas,
-            frames,
             preview,
             last_undo: Instant::now(),
-        })
+            history,
+            is_playing: false,
+            next_frame_swap: 0.0,
+            anim_frame_idx: 0,
+        };
+        editor.relayout_canvas(frames.len() > 1);
+        Box::new(editor)
     }
 
-    fn open_save_as(&mut self) {
-        if let Some(path) = file_dialog(&self.filepath, &[("IndexedImage", "ici")]).save_file() {
+    fn open_save_as(&mut self, frame_idx: Option<usize>) {
+        let filters = if frame_idx.is_some() {
+            &[("IndexedImage", "ici")]
+        } else {
+            &[("AnimatedIndexedImage", "ica")]
+        };
+        if let Some(path) = file_dialog(&self.filepath, filters).save_file() {
             self.filepath = Some(path.to_string_lossy().to_string());
-            self.save_file();
+            self.save_file(frame_idx);
         }
     }
 
-    fn save_file(&self) {
+    fn save_file(&self, frame_idx: Option<usize>) {
         if let Some(filepath) = &self.filepath {
-            let bytes = self
-                .canvas
-                .get_image()
-                .to_file_contents(&FilePalette::Colors)
-                .expect("Unable to save file (converting)");
-            fs::write(filepath, bytes).expect("Unable to save file (writing)");
+            if let Some(idx) = frame_idx {
+                let bytes = self
+                    .history
+                    .get_image(idx)
+                    .to_file_contents(&FilePalette::Colors)
+                    .expect("Unable to save ici file (converting)");
+                fs::write(filepath, bytes).expect("Unable to save ici file (writing)");
+            } else {
+                let frames = self.history.get_images();
+                let pixels = frames
+                    .iter()
+                    .flat_map(|i| i.get_pixels().to_vec())
+                    .collect();
+                let image = AnimatedIndexedImage::new(
+                    frames[0].width(),
+                    frames[1].height(),
+                    self.speed.content().parse::<f64>().unwrap_or(1.0),
+                    frames.len() as u8,
+                    frames[0].get_palette().to_vec(),
+                    pixels,
+                    PlayType::Loops,
+                )
+                .unwrap();
+                let bytes = image
+                    .to_file_contents(&FilePalette::Colors)
+                    .expect("Unable to save ica file (converting)");
+                fs::write(filepath, bytes).expect("Unable to save ica file (writing)");
+            }
         } else {
             error!("save_file called but no filepath set")
         }
+    }
+
+    fn relayout_canvas(&mut self, show_timeline: bool) {
+        let state = self.canvas.get_usage_state();
+        if show_timeline {
+            let image_height = self.history.get_current_image().height() as usize;
+            self.timeline = Timeline::new(Rect::new_with_size(
+                (
+                    self.preview.bounds().right() + PADDING,
+                    self.play_pause.bounds().bottom() - (image_height as isize + PADDING),
+                ),
+                200,
+                image_height + 4,
+            ));
+            self.canvas = Canvas::new(
+                Coord::new(
+                    self.edit_palette.bounds().bottom_right().x + PADDING,
+                    self.edit_palette.bounds().top_left().y,
+                ),
+                (
+                    210,
+                    (self.timeline.bounds().top()
+                        - self.edit_palette.bounds().top_left().y
+                        - PADDING) as usize,
+                ),
+            );
+            self.play_pause.set_state(ElementState::Normal);
+        } else {
+            self.timeline = Timeline::new(Rect::new_with_size((-1, -1), 0, 0));
+            self.canvas = Canvas::new(
+                Coord::new(
+                    self.edit_palette.bounds().bottom_right().x + PADDING,
+                    self.edit_palette.bounds().top_left().y,
+                ),
+                (210, 200),
+            );
+            self.play_pause.set_state(ElementState::Disabled);
+        }
+        self.canvas.set_color_index(self.palette.get_selected_idx());
+        self.canvas
+            .set_image(self.history.get_current_image().clone());
+        self.timeline
+            .set_frames(self.history.get_images(), self.history.active_frame());
+        self.canvas.set_usage_state(state);
     }
 }
 
@@ -318,15 +408,15 @@ impl Scene<SceneResult, SceneName> for Editor {
         graphics.draw_text(
             &name,
             TextPos::px(NAME),
-            (WHITE, Normal, WrappingStrategy::Ellipsis(38)),
+            (WHITE, TextSize::Normal, WrappingStrategy::Ellipsis(38)),
         );
         graphics.draw_line((0, NAME_LINE_Y), (WIDTH as isize, NAME_LINE_Y), LIGHT_GRAY);
 
-        // self.speed.render(graphics, mouse_xy);
-        // self.add_frame.render(graphics, mouse_xy);
-        // self.remove_frame.render(graphics, mouse_xy);
-        // self.copy_frame.render(graphics, mouse_xy);
-        // self.play_pause.render(graphics, mouse_xy);
+        self.speed.render(graphics, mouse_xy);
+        self.add_frame.render(graphics, mouse_xy);
+        self.remove_frame.render(graphics, mouse_xy);
+        self.copy_frame.render(graphics, mouse_xy);
+        self.play_pause.render(graphics, mouse_xy);
         self.tools.render(graphics, mouse_xy);
         self.save.render(graphics, mouse_xy);
         self.save_as.render(graphics, mouse_xy);
@@ -336,6 +426,7 @@ impl Scene<SceneResult, SceneName> for Editor {
         self.edit_palette.render(graphics, mouse_xy);
         self.canvas.render(graphics, mouse_xy);
         self.preview.render(graphics, mouse_xy);
+        self.timeline.render(graphics, mouse_xy);
     }
 
     fn on_key_down(&mut self, key: VirtualKeyCode, _: Coord, held: &Vec<&VirtualKeyCode>) {
@@ -345,35 +436,56 @@ impl Scene<SceneResult, SceneName> for Editor {
                 && (held.contains(&&VirtualKeyCode::LControl)
                     || held.contains(&&VirtualKeyCode::LWin))
             {
-                self.canvas.undo().unwrap();
+                self.history.undo().unwrap();
                 self.last_undo = Instant::now().add(Duration::from_millis(PER_UNDO));
                 self.palette.set_palette(self.canvas.get_palette());
+                self.canvas
+                    .set_image(self.history.get_current_image().clone());
+                self.timeline
+                    .set_frames(self.history.get_images(), self.history.active_frame());
+                self.preview
+                    .set_image(self.history.get_current_image().clone());
             }
             if ((key == VirtualKeyCode::Z && held.contains(&&VirtualKeyCode::LShift))
                 || key == VirtualKeyCode::Y)
                 && (held.contains(&&VirtualKeyCode::LControl)
                     || held.contains(&&VirtualKeyCode::LWin))
             {
-                self.canvas.redo().unwrap();
+                self.history.redo().unwrap();
                 self.last_undo = Instant::now().add(Duration::from_millis(PER_UNDO));
                 self.palette.set_palette(self.canvas.get_palette());
+                self.canvas
+                    .set_image(self.history.get_current_image().clone());
+                self.timeline
+                    .set_frames(self.history.get_images(), self.history.active_frame());
+                self.preview
+                    .set_image(self.history.get_current_image().clone());
             }
         }
     }
 
-    fn on_key_up(&mut self, key: VirtualKeyCode, _: Coord, _: &Vec<&VirtualKeyCode>) {
-        self.speed.on_key_press(key);
+    fn on_key_up(&mut self, key: VirtualKeyCode, _: Coord, held: &Vec<&VirtualKeyCode>) {
+        self.speed.on_key_press(key, held);
     }
 
     fn on_mouse_down(&mut self, xy: Coord, button: MouseButton, _: &Vec<&VirtualKeyCode>) {
         if button != MouseButton::Left {
             return;
         }
-        self.canvas.on_mouse_down(xy);
-        self.preview.on_mouse_click(xy);
+        if self.canvas.on_mouse_down(xy, &mut self.history) {
+            self.canvas
+                .set_image(self.history.get_current_image().clone());
+            self.preview.set_image(self.canvas.get_image().clone());
+            self.timeline
+                .update_frame(self.history.get_current_image().clone());
+            if self.history.is_first_event_light_pixel() {
+                let color = self.preview.select_dark_background();
+                self.timeline.set_background(color)
+            }
+        }
     }
 
-    fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, _: &Vec<&VirtualKeyCode>) {
+    fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, keys: &Vec<&VirtualKeyCode>) {
         if button != MouseButton::Left {
             return;
         }
@@ -386,25 +498,86 @@ impl Scene<SceneResult, SceneName> for Editor {
                 _ => {}
             }
         }
-        if self.add_frame.on_mouse_click(xy) {}
-        if self.remove_frame.on_mouse_click(xy) {}
-        if self.copy_frame.on_mouse_click(xy) {}
+        if self.play_pause.on_mouse_click(xy) {
+            if self.is_playing {
+                self.is_playing = false;
+                self.add_frame.set_state(ElementState::Normal);
+                self.speed.set_state(ElementState::Normal);
+                self.remove_frame.set_state(ElementState::Normal);
+                self.copy_frame.set_state(ElementState::Normal);
+                self.timeline.set_state(ElementState::Normal);
+                self.palette.set_state(ElementState::Normal);
+                self.canvas.set_state(ElementState::Normal);
+                self.clear.set_state(ElementState::Normal);
+                self.edit_palette.set_state(ElementState::Normal);
+            } else {
+                self.is_playing = true;
+                self.anim_frame_idx = 0;
+                self.next_frame_swap = self.speed.content().parse::<f64>().unwrap_or(1.0);
+                self.add_frame.set_state(ElementState::Disabled);
+                self.speed.set_state(ElementState::Disabled);
+                self.remove_frame.set_state(ElementState::Disabled);
+                self.copy_frame.set_state(ElementState::Disabled);
+                self.timeline.set_state(ElementState::Disabled);
+                self.palette.set_state(ElementState::Disabled);
+                self.canvas.set_state(ElementState::Disabled);
+                self.clear.set_state(ElementState::Disabled);
+                self.edit_palette.set_state(ElementState::Disabled);
+            }
+        }
+        if self.add_frame.on_mouse_click(xy) {
+            self.history.add_blank_frame().unwrap();
+            self.timeline
+                .set_frames(self.history.get_images(), self.history.active_frame());
+            if self.history.frame_count() == 2 {
+                self.relayout_canvas(true);
+            }
+        }
+        if self.remove_frame.on_mouse_click(xy) {
+            self.history.remove_frame().unwrap();
+            self.timeline
+                .set_frames(self.history.get_images(), self.history.active_frame());
+            if self.history.frame_count() == 1 {
+                self.relayout_canvas(false);
+            }
+        }
+        if self.copy_frame.on_mouse_click(xy) {
+            self.history.add_duplicate_frame().unwrap();
+            self.timeline
+                .set_frames(self.history.get_images(), self.history.active_frame());
+            if self.history.frame_count() == 2 {
+                self.relayout_canvas(true);
+            }
+        }
         if self.close.on_mouse_click(xy) {
             self.result = Pop(None);
         }
         if self.clear.on_mouse_click(xy) {
-            self.canvas.clear().unwrap();
+            self.history.add_clear().unwrap();
         }
         if self.save.on_mouse_click(xy) {
-            if self.filepath.is_some() {
-                self.save_file();
+            let idx = if keys.contains(&&VirtualKeyCode::LShift) || self.history.frame_count() == 1
+            {
+                Some(self.history.active_frame())
             } else {
-                self.open_save_as();
+                None
+            };
+            if self.filepath.is_some() {
+                self.save_file(idx);
+            } else {
+                self.open_save_as(idx);
             }
         }
         if self.save_as.on_mouse_click(xy) {
-            self.open_save_as();
+            let idx = if keys.contains(&&VirtualKeyCode::LShift) || self.history.frame_count() == 1
+            {
+                Some(self.history.active_frame())
+            } else {
+                None
+            };
+            self.open_save_as(idx);
         }
+        self.speed.on_mouse_click(xy);
         if self.edit_palette.on_mouse_click(xy) {
             let colors = self
                 .canvas
@@ -418,23 +591,62 @@ impl Scene<SceneResult, SceneName> for Editor {
         if self.palette.on_mouse_click(xy) {
             self.canvas.set_color_index(self.palette.get_selected_idx());
         }
-        self.canvas.on_mouse_up(xy);
+        self.canvas.on_mouse_up(xy, &mut self.history);
+        let background_color = self.preview.on_mouse_click(xy);
+        self.timeline.set_background(background_color);
+        if let Some(frame) = self.timeline.on_mouse_click(xy) {
+            self.history.add_frame_select(frame).unwrap();
+        }
+
+        self.canvas
+            .set_image(self.history.get_current_image().clone());
         self.preview.set_image(self.canvas.get_image().clone());
+        self.timeline
+            .update_frame(self.history.get_current_image().clone());
     }
 
     fn on_scroll(&mut self, xy: Coord, x_diff: isize, y_diff: isize, _: &Vec<&VirtualKeyCode>) {
         self.palette.on_scroll(xy, y_diff);
-        self.canvas.on_scroll(xy, x_diff, y_diff);
+        self.timeline.on_scroll(xy, x_diff);
     }
 
     fn update(
         &mut self,
         timing: &Timing,
-        xy: Coord,
+        _xy: Coord,
         _: &Vec<&VirtualKeyCode>,
     ) -> SceneUpdateResult<SceneResult, SceneName> {
         self.speed.update(timing);
-        self.canvas.on_mouse_hover(timing, xy);
+
+        if self.is_playing {
+            self.next_frame_swap -= timing.fixed_time_step;
+            if self.next_frame_swap <= 0.0 {
+                self.next_frame_swap = self.speed.content().parse::<f64>().unwrap_or(1.0);
+                self.anim_frame_idx += 1;
+                if self.anim_frame_idx >= self.history.frame_count() {
+                    self.anim_frame_idx = 0;
+                }
+                let image = self.history.get_image(self.anim_frame_idx);
+                self.canvas.set_image(image.clone());
+                self.preview.set_image(image.clone());
+                self.timeline.set_active(self.anim_frame_idx)
+            }
+        } else {
+            let frame_count = self.history.frame_count();
+            if frame_count == 1 {
+                self.remove_frame.set_state(ElementState::Disabled);
+            } else {
+                self.remove_frame.set_state(ElementState::Normal);
+            }
+            if frame_count > 254 {
+                self.add_frame.set_state(ElementState::Disabled);
+                self.copy_frame.set_state(ElementState::Disabled);
+            } else {
+                self.add_frame.set_state(ElementState::Normal);
+                self.copy_frame.set_state(ElementState::Normal);
+            }
+        }
+
         self.result.clone()
     }
 
@@ -443,13 +655,16 @@ impl Scene<SceneResult, SceneName> for Editor {
             let colors: Vec<IciColor> = colors.iter().map(|c| c.to_ici()).collect();
             self.palette.set_palette(&colors);
             self.palette.set_color_index(0);
-            self.canvas.set_color_index(0);
-            if let Err(e) = self.canvas.set_palette(&colors) {
-                panic!(
-                    "Failed to update palette: {} (please raise issue on github)",
-                    e
-                );
+            if let Err(e) = self.history.add_palette_change(&colors) {
+                panic!("Failed to update palette: {e} (please raise issue on github)");
             }
+            self.timeline
+                .set_frames(self.history.get_images(), self.history.active_frame());
+            self.preview
+                .set_image(self.history.get_current_image().clone());
+            self.canvas
+                .set_image(self.history.get_current_image().clone());
+            self.canvas.set_color_index(0);
         }
         self.result = Nothing;
     }

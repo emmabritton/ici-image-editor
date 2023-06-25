@@ -35,7 +35,7 @@ fn main() -> Result<()> {
         let style = style;
         match name {
             SceneName::Editor(details) => list.push(Editor::new(WIDTH, HEIGHT, details, style)),
-            SceneName::NewImage => list.push(NewImageDialog::new(WIDTH, HEIGHT, &style.dialog)),
+            SceneName::NewImage => list.push(NewImageDialog::new(WIDTH, HEIGHT, style)),
             SceneName::Palette(colors) => {
                 list.push(PaletteDialog::new(colors, WIDTH, HEIGHT, &style.dialog))
             }

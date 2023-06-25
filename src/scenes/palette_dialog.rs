@@ -1,15 +1,15 @@
 use crate::palettes::Palette;
-use crate::scenes::{dialog_background, file_dialog};
 use crate::SceneUpdateResult::{Nothing, Pop};
 use crate::{Scene, SceneName, SceneResult, SUR};
 
+use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
 use pixels_graphics_lib::prelude::*;
-
 use pixels_graphics_lib::ui::prelude::TextFilter::Numbers;
 use pixels_graphics_lib::ui::prelude::*;
 
 use std::fs;
 
+use crate::scenes::file_dialog;
 use std::str::FromStr;
 
 const PAL_POS: Coord = Coord::new(5, 48);
@@ -119,7 +119,7 @@ impl PaletteDialog {
         let red = TextField::new(
             dialog_pos + (70, 94),
             3,
-            Normal,
+            TextSize::Normal,
             (None, None),
             "",
             &[Numbers],
@@ -128,7 +128,7 @@ impl PaletteDialog {
         let green = TextField::new(
             dialog_pos + (70, 106),
             3,
-            Normal,
+            TextSize::Normal,
             (None, None),
             "",
             &[Numbers],
@@ -137,7 +137,7 @@ impl PaletteDialog {
         let blue = TextField::new(
             dialog_pos + (70, 118),
             3,
-            Normal,
+            TextSize::Normal,
             (None, None),
             "",
             &[Numbers],
@@ -146,7 +146,7 @@ impl PaletteDialog {
         let alpha = TextField::new(
             dialog_pos + (70, 130),
             3,
-            Normal,
+            TextSize::Normal,
             (None, None),
             "",
             &[Numbers],
@@ -268,22 +268,22 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
         graphics.draw_text(
             "R",
             TextPos::px(self.dialog_pos + (60, 96)),
-            (WHITE, Normal),
+            (WHITE, TextSize::Normal),
         );
         graphics.draw_text(
             "G",
             TextPos::px(self.dialog_pos + (60, 108)),
-            (WHITE, Normal),
+            (WHITE, TextSize::Normal),
         );
         graphics.draw_text(
             "B",
             TextPos::px(self.dialog_pos + (60, 120)),
-            (WHITE, Normal),
+            (WHITE, TextSize::Normal),
         );
         graphics.draw_text(
             "A",
             TextPos::px(self.dialog_pos + (60, 132)),
-            (WHITE, Normal),
+            (WHITE, TextSize::Normal),
         );
 
         let mut y = 0;
@@ -315,11 +315,11 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
         }
     }
 
-    fn on_key_up(&mut self, key: VirtualKeyCode, _: Coord, _: &Vec<&VirtualKeyCode>) {
-        self.red.on_key_press(key);
-        self.green.on_key_press(key);
-        self.blue.on_key_press(key);
-        self.alpha.on_key_press(key);
+    fn on_key_up(&mut self, key: VirtualKeyCode, _: Coord, held: &Vec<&VirtualKeyCode>) {
+        self.red.on_key_press(key, held);
+        self.green.on_key_press(key, held);
+        self.blue.on_key_press(key, held);
+        self.alpha.on_key_press(key, held);
         let r = u8::from_str(self.red.content()).unwrap_or_default();
         let g = u8::from_str(self.green.content()).unwrap_or_default();
         let b = u8::from_str(self.blue.content()).unwrap_or_default();

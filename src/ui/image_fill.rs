@@ -1,5 +1,5 @@
 use fnv::FnvHashSet;
-use pixels_graphics_lib::prelude::{IndexedImage, IndexedImageError};
+use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
 
 pub fn fill_pixels(image: &IndexedImage, start: (u8, u8)) -> Result<Vec<usize>, IndexedImageError> {
     let i = image.get_pixel_index(start.0, start.1)?;

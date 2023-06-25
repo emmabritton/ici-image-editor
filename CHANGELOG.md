@@ -1,5 +1,8 @@
 # Changelog
 
+### Version 0.4.0
+- Add support for animated images
+
 ### Version 0.3.3
 - Fix crash when selecting edge of preview
 
