@@ -10,7 +10,7 @@ readme = "README.md"
 homepage = "https://github.com/emmabritton/ici-image-editor"
 
 [dependencies]
-pixels-graphics-lib = "0.14.2"
+pixels-graphics-lib = "0.14.3"
 color-eyre = "0.6.2"
 log = "0.4.20"
 directories = "5.0.1"
