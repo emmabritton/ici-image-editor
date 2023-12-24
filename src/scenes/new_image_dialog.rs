@@ -209,7 +209,7 @@ impl NewImageDialog {
 }
 
 impl Scene<SceneResult, SceneName> for NewImageDialog {
-    fn render(&self, graphics: &mut Graphics, mouse_xy: Coord) {
+    fn render(&self, graphics: &mut Graphics, mouse_xy: Coord, _: &[KeyCode]) {
         graphics.draw(&self.background);
         graphics.draw(&self.width_label);
         graphics.draw(&self.height_label);
@@ -232,18 +232,18 @@ impl Scene<SceneResult, SceneName> for NewImageDialog {
         }
     }
 
-    fn on_key_up(&mut self, key: VirtualKeyCode, _: Coord, held: &Vec<&VirtualKeyCode>) {
+    fn on_key_up(&mut self, key: KeyCode, _: Coord, held: &[KeyCode]) {
         if self.alert_visible {
             return;
         }
-        if key == VirtualKeyCode::Tab && self.width_field.is_focused() {
+        if key == KeyCode::Tab && self.width_field.is_focused() {
             self.width_field.unfocus();
             self.height_field.focus();
         } else if self.height_field.is_focused() {
-            if key == VirtualKeyCode::Tab && held.contains(&&VirtualKeyCode::LShift) {
+            if key == KeyCode::Tab && held.contains(&KeyCode::ShiftLeft) {
                 self.height_field.unfocus();
                 self.width_field.focus();
-            } else if key == VirtualKeyCode::Return {
+            } else if key == KeyCode::Enter {
                 self.submit();
             }
         }
@@ -251,7 +251,7 @@ impl Scene<SceneResult, SceneName> for NewImageDialog {
         self.height_field.on_key_press(key, held);
     }
 
-    fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, _: &Vec<&VirtualKeyCode>) {
+    fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, _: &[KeyCode]) {
         if button != MouseButton::Left {
             return;
         }
@@ -295,7 +295,7 @@ impl Scene<SceneResult, SceneName> for NewImageDialog {
         }
     }
 
-    fn update(&mut self, timing: &Timing, _: Coord, _: &Vec<&VirtualKeyCode>) -> SUR {
+    fn update(&mut self, timing: &Timing, _: Coord, _: &[KeyCode]) -> SUR {
         self.width_field.update(timing);
         self.height_field.update(timing);
         self.result.clone()

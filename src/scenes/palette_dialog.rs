@@ -224,7 +224,7 @@ impl PaletteDialog {
 }
 
 impl Scene<SceneResult, SceneName> for PaletteDialog {
-    fn render(&self, graphics: &mut Graphics, mouse_xy: Coord) {
+    fn render(&self, graphics: &mut Graphics, mouse_xy: Coord, _: &[KeyCode]) {
         self.background.render(graphics);
         self.dos.render(graphics, mouse_xy);
         self.gb.render(graphics, mouse_xy);
@@ -315,7 +315,7 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
         }
     }
 
-    fn on_key_up(&mut self, key: VirtualKeyCode, _: Coord, held: &Vec<&VirtualKeyCode>) {
+    fn on_key_up(&mut self, key: KeyCode, _: Coord, held: &[KeyCode]) {
         self.red.on_key_press(key, held);
         self.green.on_key_press(key, held);
         self.blue.on_key_press(key, held);
@@ -327,7 +327,7 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
         self.current_color = Color { r, g, b, a };
     }
 
-    fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, _: &Vec<&VirtualKeyCode>) {
+    fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, _: &[KeyCode]) {
         if button != MouseButton::Left {
             return;
         }
@@ -396,7 +396,7 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
         }
     }
 
-    fn update(&mut self, timing: &Timing, _: Coord, _: &Vec<&VirtualKeyCode>) -> SUR {
+    fn update(&mut self, timing: &Timing, _: Coord, _: &[KeyCode]) -> SUR {
         self.red.update(timing);
         self.green.update(timing);
         self.blue.update(timing);

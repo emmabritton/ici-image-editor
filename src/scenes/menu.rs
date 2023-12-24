@@ -2,14 +2,10 @@ use crate::scenes::new_editor::EditorDetails;
 use crate::scenes::{file_dialog, BACKGROUND};
 use crate::SceneUpdateResult::{Nothing, Push};
 use crate::{Scene, SceneName, SceneResult, SUR};
-use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
-use pixels_graphics_lib::buffer_graphics_lib::text::wrapping::WrappingStrategy;
-use pixels_graphics_lib::buffer_graphics_lib::text::TextSize::Large;
-use pixels_graphics_lib::prelude::VirtualKeyCode;
 use pixels_graphics_lib::ui::prelude::*;
-use pixels_graphics_lib::ui::styles::ButtonStyle;
-use pixels_graphics_lib::MouseButton;
-use pixels_graphics_lib::Timing;
+use pixels_graphics_lib::prelude::*;
+use pixels_graphics_lib::prelude::TextSize::Large;
+use color_eyre::Result;
 
 const LOGO_POS: Coord = Coord::new(10, 10);
 const NEW_POS: Coord = Coord::new(10, 50);
@@ -27,7 +23,7 @@ fn make_image(
     width: usize,
     height: usize,
     method: fn(&mut Graphics),
-) -> Result<Image, GraphicsError> {
+) -> Result<Image> {
     let mut buffer = vec![0_u8; width * height * 4];
     let mut graphics = Graphics::new(&mut buffer, width, height)?;
     method(&mut graphics);
@@ -56,7 +52,7 @@ impl Menu {
 }
 
 impl Scene<SceneResult, SceneName> for Menu {
-    fn render(&self, graphics: &mut Graphics, mouse_xy: Coord) {
+    fn render(&self, graphics: &mut Graphics, mouse_xy: Coord, _: &[KeyCode]) {
         graphics.clear(BACKGROUND);
 
         graphics.draw_image(LOGO_POS, &self.logo);
@@ -65,9 +61,9 @@ impl Scene<SceneResult, SceneName> for Menu {
         self.load_button.render(graphics, mouse_xy);
     }
 
-    fn on_key_up(&mut self, _: VirtualKeyCode, _: Coord, _: &Vec<&VirtualKeyCode>) {}
+    fn on_key_up(&mut self, _: KeyCode, _: Coord, _: &[KeyCode]) {}
 
-    fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, _: &Vec<&VirtualKeyCode>) {
+    fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, _: &[KeyCode]) {
         if button != MouseButton::Left {
             return;
         }
@@ -89,7 +85,7 @@ impl Scene<SceneResult, SceneName> for Menu {
         }
     }
 
-    fn update(&mut self, _: &Timing, _: Coord, _: &Vec<&VirtualKeyCode>) -> SUR {
+    fn update(&mut self, _: &Timing, _: Coord, _: &[KeyCode]) -> SUR {
         self.result.clone()
     }
 

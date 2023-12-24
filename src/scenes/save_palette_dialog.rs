@@ -107,7 +107,7 @@ impl SavePaletteDataDialog {
 }
 
 impl Scene<SceneResult, SceneName> for SavePaletteDataDialog {
-    fn render(&self, graphics: &mut Graphics, mouse_xy: Coord) {
+    fn render(&self, graphics: &mut Graphics, mouse_xy: Coord, _: &[KeyCode]) {
         self.background.render(graphics);
         self.title.render(graphics);
         self.id.render(graphics, mouse_xy);
@@ -123,12 +123,12 @@ impl Scene<SceneResult, SceneName> for SavePaletteDataDialog {
         }
     }
 
-    fn on_key_up(&mut self, key: VirtualKeyCode, _: Coord, held: &Vec<&VirtualKeyCode>) {
+    fn on_key_up(&mut self, key: KeyCode, _: Coord, held: &[KeyCode]) {
         self.id.on_key_press(key, held);
         self.name.on_key_press(key, held);
     }
 
-    fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, _: &Vec<&VirtualKeyCode>) {
+    fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, _: &[KeyCode]) {
         if button != MouseButton::Left {
             return;
         }
@@ -166,7 +166,7 @@ impl Scene<SceneResult, SceneName> for SavePaletteDataDialog {
         }
     }
 
-    fn update(&mut self, timing: &Timing, _: Coord, _: &Vec<&VirtualKeyCode>) -> SUR {
+    fn update(&mut self, timing: &Timing, _: Coord, _: &[KeyCode]) -> SUR {
         self.id.update(timing);
         self.name.update(timing);
 

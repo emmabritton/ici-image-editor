@@ -387,7 +387,7 @@ impl Editor {
 }
 
 impl Scene<SceneResult, SceneName> for Editor {
-    fn render(&self, graphics: &mut Graphics, mouse_xy: Coord) {
+    fn render(&self, graphics: &mut Graphics, mouse_xy: Coord, _: &[KeyCode]) {
         graphics.clear(BACKGROUND);
 
         let name = if let Some(path) = &self.filepath {
@@ -429,12 +429,12 @@ impl Scene<SceneResult, SceneName> for Editor {
         self.timeline.render(graphics, mouse_xy);
     }
 
-    fn on_key_down(&mut self, key: VirtualKeyCode, _: Coord, held: &Vec<&VirtualKeyCode>) {
+    fn on_key_down(&mut self, key: KeyCode, _: Coord, held: &[KeyCode]) {
         if self.last_undo < Instant::now() {
-            if key == VirtualKeyCode::Z
-                && !held.contains(&&VirtualKeyCode::LShift)
-                && (held.contains(&&VirtualKeyCode::LControl)
-                    || held.contains(&&VirtualKeyCode::LWin))
+            if key == KeyCode::KeyZ
+                && !held.contains(&&KeyCode::ShiftLeft)
+                && (held.contains(&&KeyCode::ControlLeft)
+                    || held.contains(&&KeyCode::SuperLeft))
             {
                 self.history.undo().unwrap();
                 self.last_undo = Instant::now().add(Duration::from_millis(PER_UNDO));
@@ -446,10 +446,10 @@ impl Scene<SceneResult, SceneName> for Editor {
                 self.preview
                     .set_image(self.history.get_current_image().clone());
             }
-            if ((key == VirtualKeyCode::Z && held.contains(&&VirtualKeyCode::LShift))
-                || key == VirtualKeyCode::Y)
-                && (held.contains(&&VirtualKeyCode::LControl)
-                    || held.contains(&&VirtualKeyCode::LWin))
+            if ((key == KeyCode::KeyZ && held.contains(&&KeyCode::ShiftLeft))
+                || key == KeyCode::KeyY)
+                && (held.contains(&&KeyCode::ControlLeft)
+                    || held.contains(&&KeyCode::SuperLeft))
             {
                 self.history.redo().unwrap();
                 self.last_undo = Instant::now().add(Duration::from_millis(PER_UNDO));
@@ -464,11 +464,11 @@ impl Scene<SceneResult, SceneName> for Editor {
         }
     }
 
-    fn on_key_up(&mut self, key: VirtualKeyCode, _: Coord, held: &Vec<&VirtualKeyCode>) {
+    fn on_key_up(&mut self, key: KeyCode, _: Coord, held: &[KeyCode]) {
         self.speed.on_key_press(key, held);
     }
 
-    fn on_mouse_down(&mut self, xy: Coord, button: MouseButton, _: &Vec<&VirtualKeyCode>) {
+    fn on_mouse_down(&mut self, xy: Coord, button: MouseButton, _: &[KeyCode]) {
         if button != MouseButton::Left {
             return;
         }
@@ -485,7 +485,7 @@ impl Scene<SceneResult, SceneName> for Editor {
         }
     }
 
-    fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, keys: &Vec<&VirtualKeyCode>) {
+    fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, keys: &[KeyCode]) {
         if button != MouseButton::Left {
             return;
         }
@@ -556,7 +556,7 @@ impl Scene<SceneResult, SceneName> for Editor {
             self.history.add_clear().unwrap();
         }
         if self.save.on_mouse_click(xy) {
-            let idx = if keys.contains(&&VirtualKeyCode::LShift) || self.history.frame_count() == 1
+            let idx = if keys.contains(&&KeyCode::ShiftLeft) || self.history.frame_count() == 1
             {
                 Some(self.history.active_frame())
             } else {
@@ -569,7 +569,7 @@ impl Scene<SceneResult, SceneName> for Editor {
             }
         }
         if self.save_as.on_mouse_click(xy) {
-            let idx = if keys.contains(&&VirtualKeyCode::LShift) || self.history.frame_count() == 1
+            let idx = if keys.contains(&&KeyCode::ShiftLeft) || self.history.frame_count() == 1
             {
                 Some(self.history.active_frame())
             } else {
@@ -605,7 +605,7 @@ impl Scene<SceneResult, SceneName> for Editor {
             .update_frame(self.history.get_current_image().clone());
     }
 
-    fn on_scroll(&mut self, xy: Coord, x_diff: isize, y_diff: isize, _: &Vec<&VirtualKeyCode>) {
+    fn on_scroll(&mut self, xy: Coord, x_diff: isize, y_diff: isize, _: &[KeyCode]) {
         self.palette.on_scroll(xy, y_diff);
         self.timeline.on_scroll(xy, x_diff);
     }
@@ -614,7 +614,7 @@ impl Scene<SceneResult, SceneName> for Editor {
         &mut self,
         timing: &Timing,
         _xy: Coord,
-        _: &Vec<&VirtualKeyCode>,
+        _: &[KeyCode],
     ) -> SceneUpdateResult<SceneResult, SceneName> {
         self.speed.update(timing);
 

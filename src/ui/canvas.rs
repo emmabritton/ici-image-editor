@@ -1,7 +1,5 @@
-use crate::graphics_shapes::coord;
 use crate::ui::edit_history::EditHistory;
 use log::error;
-use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
 use pixels_graphics_lib::prelude::*;
 use pixels_graphics_lib::ui::prelude::*;
 

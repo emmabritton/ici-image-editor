@@ -9,9 +9,6 @@ use crate::scenes::palette_dialog::PaletteDialog;
 use crate::scenes::save_palette_dialog::SavePaletteDataDialog;
 use color_eyre::Result;
 use log::LevelFilter;
-use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
-use pixels_graphics_lib::prefs::WindowPreferences;
-
 use pixels_graphics_lib::prelude::*;
 use std::fmt::Debug;
 
@@ -55,7 +52,7 @@ fn main() -> Result<()> {
         WIDTH,
         HEIGHT,
         "Image Editor",
-        Some(WindowPreferences::new("app", "emmabritton", "image_editor").unwrap()),
+        Some(WindowPreferences::new("app", "emmabritton", "image_editor", 1).unwrap()),
         switcher,
         Menu::new(&options.style.button),
         options,

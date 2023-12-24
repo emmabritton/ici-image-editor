@@ -373,21 +373,21 @@ impl Scene<SceneResult, SceneName> for Editor {
         }
     }
 
-    fn on_key_press(&mut self, key: VirtualKeyCode, held_keys: &Vec<&VirtualKeyCode>) {
-        if (held_keys.contains(&&VirtualKeyCode::LControl)
-            || held_keys.contains(&&VirtualKeyCode::LWin))
-            && key == VirtualKeyCode::Z
+    fn on_key_press(&mut self, key: KeyCode, held_keys: &[KeyCode]) {
+        if (held_keys.contains(&&KeyCode::LControl)
+            || held_keys.contains(&&KeyCode::LWin))
+            && key == KeyCode::Z
         {
             todo!("undo");
-        } else if (held_keys.contains(&&VirtualKeyCode::LControl)
-            || held_keys.contains(&&VirtualKeyCode::LWin))
-            && key == VirtualKeyCode::Y
+        } else if (held_keys.contains(&&KeyCode::LControl)
+            || held_keys.contains(&&KeyCode::LWin))
+            && key == KeyCode::Y
         {
             todo!("redo");
         }
     }
 
-    fn on_mouse_click(&mut self, xy: Coord, _: &Vec<&VirtualKeyCode>) {
+    fn on_mouse_click(&mut self, xy: Coord, _: &[KeyCode]) {
         if self.pending_alert_action.is_some() {
             if let Some(result) = self.alert.on_mouse_click(xy) {
                 if result == Positive {
@@ -501,7 +501,7 @@ impl Scene<SceneResult, SceneName> for Editor {
         }
     }
 
-    fn update(&mut self, _: &Timing, _: Coord, _: &Vec<&VirtualKeyCode>) -> SUR {
+    fn update(&mut self, _: &Timing, _: Coord, _: &[KeyCode]) -> SUR {
         self.result.clone()
     }
 
