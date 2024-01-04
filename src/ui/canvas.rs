@@ -264,7 +264,7 @@ impl UiElement for Canvas {
         &self.bounds
     }
 
-    fn render(&self, graphics: &mut Graphics, mouse_xy: Coord) {
+    fn render(&self, graphics: &mut Graphics, mouse: &MouseData) {
         let mut trans_color = self.trans_background_colors.0;
         let swap_color = |color: &mut Color| {
             if color == &self.trans_background_colors.0 {
@@ -287,11 +287,11 @@ impl UiElement for Canvas {
         }
 
         graphics.set_translate(orig_trans);
-        if self.inner_bounds.contains(mouse_xy) && self.state == ElementState::Normal {
+        if self.inner_bounds.contains(mouse.xy) && self.state == ElementState::Normal {
             match (self.tool, self.first_click_at) {
-                (Tool::Line, Some(start)) => self.temp_line(graphics, start, mouse_xy),
-                (Tool::Rect, Some(start)) => self.temp_rect(graphics, start, mouse_xy),
-                _ => self.draw_mouse_highlight(graphics, mouse_xy),
+                (Tool::Line, Some(start)) => self.temp_line(graphics, start, mouse.xy),
+                (Tool::Rect, Some(start)) => self.temp_rect(graphics, start, mouse.xy),
+                _ => self.draw_mouse_highlight(graphics, mouse.xy),
             }
         }
     }

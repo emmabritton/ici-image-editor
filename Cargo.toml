@@ -9,13 +9,18 @@ repository = "https://github.com/emmabritton/ici-image-editor"
 readme = "README.md"
 homepage = "https://github.com/emmabritton/ici-image-editor"
 
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+
 [dependencies]
-pixels-graphics-lib = "0.14.3"
+pixels-graphics-lib = { version = "0.15.2", default-features = false, features = ["window_prefs", "scenes"] }
 color-eyre = "0.6.2"
 log = "0.4.20"
 directories = "5.0.1"
 env_logger = "0.10.1"
 ron = "0.8.1"
-serde = { version = "1.0.193", features = ["derive"] }
+serde = { version = "1.0.194", features = ["derive"] }
 fnv = "1.0.3"
 rfd = "0.12.1"

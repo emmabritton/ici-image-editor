@@ -112,7 +112,7 @@ impl UiElement for Timeline {
         &self.bounds
     }
 
-    fn render(&self, graphics: &mut Graphics, _: Coord) {
+    fn render(&self, graphics: &mut Graphics, _: &MouseData) {
         graphics.clip_mut().set_valid_rect(self.bounds.clone());
         let y = self.bounds.top() + PADDING;
         let start_x = self.bounds.left() + PADDING;

@@ -224,25 +224,25 @@ impl PaletteDialog {
 }
 
 impl Scene<SceneResult, SceneName> for PaletteDialog {
-    fn render(&self, graphics: &mut Graphics, mouse_xy: Coord, _: &[KeyCode]) {
+    fn render(&self, graphics: &mut Graphics, mouse: &MouseData, _: &[KeyCode]) {
         self.background.render(graphics);
-        self.dos.render(graphics, mouse_xy);
-        self.gb.render(graphics, mouse_xy);
-        self.pico.render(graphics, mouse_xy);
-        self.vic.render(graphics, mouse_xy);
-        self.zx.render(graphics, mouse_xy);
-        self.def.render(graphics, mouse_xy);
-        self.ok.render(graphics, mouse_xy);
-        self.cancel.render(graphics, mouse_xy);
-        self.replace.render(graphics, mouse_xy);
-        self.delete.render(graphics, mouse_xy);
-        self.add.render(graphics, mouse_xy);
-        self.red.render(graphics, mouse_xy);
-        self.green.render(graphics, mouse_xy);
-        self.blue.render(graphics, mouse_xy);
-        self.alpha.render(graphics, mouse_xy);
-        self.save.render(graphics, mouse_xy);
-        self.load.render(graphics, mouse_xy);
+        self.dos.render(graphics, mouse);
+        self.gb.render(graphics, mouse);
+        self.pico.render(graphics, mouse);
+        self.vic.render(graphics, mouse);
+        self.zx.render(graphics, mouse);
+        self.def.render(graphics, mouse);
+        self.ok.render(graphics, mouse);
+        self.cancel.render(graphics, mouse);
+        self.replace.render(graphics, mouse);
+        self.delete.render(graphics, mouse);
+        self.add.render(graphics, mouse);
+        self.red.render(graphics, mouse);
+        self.green.render(graphics, mouse);
+        self.blue.render(graphics, mouse);
+        self.alpha.render(graphics, mouse);
+        self.save.render(graphics, mouse);
+        self.load.render(graphics, mouse);
 
         graphics.draw_rect(
             Rect::new_with_size(self.dialog_pos + (14, 96), 16, 16),
@@ -315,7 +315,7 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
         }
     }
 
-    fn on_key_up(&mut self, key: KeyCode, _: Coord, held: &[KeyCode]) {
+    fn on_key_up(&mut self, key: KeyCode, _: &MouseData, held: &[KeyCode]) {
         self.red.on_key_press(key, held);
         self.green.on_key_press(key, held);
         self.blue.on_key_press(key, held);
@@ -327,68 +327,68 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
         self.current_color = Color { r, g, b, a };
     }
 
-    fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, _: &[KeyCode]) {
+    fn on_mouse_click(&mut self, down_at: Coord, mouse: &MouseData, button: MouseButton, _: &[KeyCode]) {
         if button != MouseButton::Left {
             return;
         }
-        if self.cancel.on_mouse_click(xy) {
+        if self.cancel.on_mouse_click(down_at, mouse.xy) {
             self.result = Pop(None);
         }
-        if self.ok.on_mouse_click(xy) {
+        if self.ok.on_mouse_click(down_at, mouse.xy) {
             self.result = Pop(Some(SceneResult::Palette(self.colors.clone())));
         }
-        if self.gb.on_mouse_click(xy) {
+        if self.gb.on_mouse_click(down_at, mouse.xy) {
             self.reset_colors(&Palette::builtin_gb().colors);
         }
-        if self.dos.on_mouse_click(xy) {
+        if self.dos.on_mouse_click(down_at, mouse.xy) {
             self.reset_colors(&Palette::builtin_dos().colors);
         }
-        if self.vic.on_mouse_click(xy) {
+        if self.vic.on_mouse_click(down_at, mouse.xy) {
             self.reset_colors(&Palette::builtin_vic().colors);
         }
-        if self.pico.on_mouse_click(xy) {
+        if self.pico.on_mouse_click(down_at, mouse.xy) {
             self.reset_colors(&Palette::builtin_pico().colors);
         }
-        if self.zx.on_mouse_click(xy) {
+        if self.zx.on_mouse_click(down_at, mouse.xy) {
             self.reset_colors(&Palette::builtin_zx().colors);
         }
-        if self.def.on_mouse_click(xy) {
+        if self.def.on_mouse_click(down_at, mouse.xy) {
             self.reset_colors(&Palette::default().colors);
         }
-        if self.add.on_mouse_click(xy) && self.colors.len() < 42 {
+        if self.add.on_mouse_click(down_at, mouse.xy) && self.colors.len() < 42 {
             self.colors.push(self.current_color);
         }
-        if self.delete.on_mouse_click(xy) && self.colors.len() > 1 {
+        if self.delete.on_mouse_click(down_at, mouse.xy) && self.colors.len() > 1 {
             self.colors.remove(self.selected_color);
             if self.selected_color >= self.colors.len() {
                 self.selected_color = 0;
                 self.update_selected_color_display();
             }
         }
-        if self.replace.on_mouse_click(xy) {
+        if self.replace.on_mouse_click(down_at, mouse.xy) {
             self.colors[self.selected_color] = self.current_color;
         }
-        self.red.on_mouse_click(xy);
-        self.green.on_mouse_click(xy);
-        self.blue.on_mouse_click(xy);
-        self.alpha.on_mouse_click(xy);
+        self.red.on_mouse_click(down_at, mouse.xy);
+        self.green.on_mouse_click(down_at, mouse.xy);
+        self.blue.on_mouse_click(down_at, mouse.xy);
+        self.alpha.on_mouse_click(down_at, mouse.xy);
         let start = self.dialog_pos + PAL_POS;
-        if Rect::new_with_size(start, PAL_WIDTH, PAL_HEIGHT).contains(xy) {
-            let x = (xy.x - start.x) / PAL_SPACED as isize;
-            let y = (xy.y - start.y) / PAL_SPACED as isize;
+        if Rect::new_with_size(start, PAL_WIDTH, PAL_HEIGHT).contains(mouse.xy) {
+            let x = (mouse.xy.x - start.x) / PAL_SPACED as isize;
+            let y = (mouse.xy.y - start.y) / PAL_SPACED as isize;
             let idx = (x + y * PAL_PER_ROW as isize) as usize;
             if idx < self.colors.len() {
                 self.selected_color = idx;
                 self.update_selected_color_display();
             }
         }
-        if self.save.on_mouse_click(xy) {
+        if self.save.on_mouse_click(down_at, mouse.xy) {
             if let Some(path) = file_dialog(&self.file_path, &[("Palette", "pal")]).save_file() {
                 self.file_path = Some(path.to_string_lossy().to_string());
                 self.save_palette();
             }
         }
-        if self.load.on_mouse_click(xy) {
+        if self.load.on_mouse_click(down_at, mouse.xy) {
             if let Some(path) = file_dialog(&self.file_path, &[("Palette", "pal")]).pick_file() {
                 self.file_path = Some(path.to_string_lossy().to_string());
                 self.load_palette();
@@ -396,7 +396,7 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
         }
     }
 
-    fn update(&mut self, timing: &Timing, _: Coord, _: &[KeyCode]) -> SUR {
+    fn update(&mut self, timing: &Timing, _: &MouseData, _: &[KeyCode]) -> SUR {
         self.red.update(timing);
         self.green.update(timing);
         self.blue.update(timing);

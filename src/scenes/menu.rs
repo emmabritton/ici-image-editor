@@ -52,25 +52,25 @@ impl Menu {
 }
 
 impl Scene<SceneResult, SceneName> for Menu {
-    fn render(&self, graphics: &mut Graphics, mouse_xy: Coord, _: &[KeyCode]) {
+    fn render(&self, graphics: &mut Graphics, mouse: &MouseData, _: &[KeyCode]) {
         graphics.clear(BACKGROUND);
 
         graphics.draw_image(LOGO_POS, &self.logo);
 
-        self.new_button.render(graphics, mouse_xy);
-        self.load_button.render(graphics, mouse_xy);
+        self.new_button.render(graphics, mouse);
+        self.load_button.render(graphics, mouse);
     }
 
-    fn on_key_up(&mut self, _: KeyCode, _: Coord, _: &[KeyCode]) {}
+    fn on_key_up(&mut self, _: KeyCode, _: &MouseData, _: &[KeyCode]) {}
 
-    fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, _: &[KeyCode]) {
+    fn on_mouse_click(&mut self, down_at: Coord, mouse: &MouseData, button: MouseButton, _: &[KeyCode]) {
         if button != MouseButton::Left {
             return;
         }
-        if self.new_button.on_mouse_click(xy) {
+        if self.new_button.on_mouse_click(down_at, mouse.xy) {
             self.result = Push(false, SceneName::NewImage);
         }
-        if self.load_button.on_mouse_click(xy) {
+        if self.load_button.on_mouse_click(down_at, mouse.xy) {
             if let Some(path) = file_dialog(
                 &None,
                 &[("IndexedImage", "ici"), ("AnimatedIndexedImage", "ica")],
@@ -85,7 +85,7 @@ impl Scene<SceneResult, SceneName> for Menu {
         }
     }
 
-    fn update(&mut self, _: &Timing, _: Coord, _: &[KeyCode]) -> SUR {
+    fn update(&mut self, _: &Timing, _: &MouseData, _: &[KeyCode]) -> SUR {
         self.result.clone()
     }
 

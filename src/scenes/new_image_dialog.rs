@@ -209,30 +209,30 @@ impl NewImageDialog {
 }
 
 impl Scene<SceneResult, SceneName> for NewImageDialog {
-    fn render(&self, graphics: &mut Graphics, mouse_xy: Coord, _: &[KeyCode]) {
+    fn render(&self, graphics: &mut Graphics, mouse: &MouseData, _: &[KeyCode]) {
         graphics.draw(&self.background);
         graphics.draw(&self.width_label);
         graphics.draw(&self.height_label);
-        self.submit_button.render(graphics, mouse_xy);
-        self.cancel_button.render(graphics, mouse_xy);
+        self.submit_button.render(graphics, mouse);
+        self.cancel_button.render(graphics, mouse);
         self.label.render(graphics);
-        self.quick_8.render(graphics, mouse_xy);
-        self.quick_12.render(graphics, mouse_xy);
-        self.quick_16.render(graphics, mouse_xy);
-        self.quick_32.render(graphics, mouse_xy);
-        self.quick_24.render(graphics, mouse_xy);
-        self.quick_48.render(graphics, mouse_xy);
-        self.quick_64.render(graphics, mouse_xy);
-        self.quick_8_16.render(graphics, mouse_xy);
-        self.width_field.render(graphics, mouse_xy);
-        self.height_field.render(graphics, mouse_xy);
+        self.quick_8.render(graphics, mouse);
+        self.quick_12.render(graphics, mouse);
+        self.quick_16.render(graphics, mouse);
+        self.quick_32.render(graphics, mouse);
+        self.quick_24.render(graphics, mouse);
+        self.quick_48.render(graphics, mouse);
+        self.quick_64.render(graphics, mouse);
+        self.quick_8_16.render(graphics, mouse);
+        self.width_field.render(graphics, mouse);
+        self.height_field.render(graphics, mouse);
 
         if self.alert_visible {
-            self.alert.render(graphics, mouse_xy);
+            self.alert.render(graphics, mouse);
         }
     }
 
-    fn on_key_up(&mut self, key: KeyCode, _: Coord, held: &[KeyCode]) {
+    fn on_key_up(&mut self, key: KeyCode, _: &MouseData, held: &[KeyCode]) {
         if self.alert_visible {
             return;
         }
@@ -251,51 +251,51 @@ impl Scene<SceneResult, SceneName> for NewImageDialog {
         self.height_field.on_key_press(key, held);
     }
 
-    fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, _: &[KeyCode]) {
+    fn on_mouse_click(&mut self, down_at: Coord, mouse: &MouseData, button: MouseButton, _: &[KeyCode]) {
         if button != MouseButton::Left {
             return;
         }
         if self.alert_visible {
-            if self.alert.on_mouse_click(xy).is_some() {
+            if self.alert.on_mouse_click(down_at, mouse.xy).is_some() {
                 self.alert_visible = false;
             }
             return;
         }
-        self.width_field.on_mouse_click(xy);
-        self.height_field.on_mouse_click(xy);
-        if self.submit_button.on_mouse_click(xy) {
+        self.width_field.on_mouse_click(down_at, mouse.xy);
+        self.height_field.on_mouse_click(down_at, mouse.xy);
+        if self.submit_button.on_mouse_click(down_at, mouse.xy) {
             self.submit();
         }
-        if self.cancel_button.on_mouse_click(xy) {
+        if self.cancel_button.on_mouse_click(down_at, mouse.xy) {
             self.result = Pop(None);
         }
-        if self.quick_8.on_mouse_click(xy) {
+        if self.quick_8.on_mouse_click(down_at, mouse.xy) {
             self.set_success(8, 8);
         }
-        if self.quick_12.on_mouse_click(xy) {
+        if self.quick_12.on_mouse_click(down_at, mouse.xy) {
             self.set_success(12, 12);
         }
-        if self.quick_16.on_mouse_click(xy) {
+        if self.quick_16.on_mouse_click(down_at, mouse.xy) {
             self.set_success(16, 16);
         }
-        if self.quick_24.on_mouse_click(xy) {
+        if self.quick_24.on_mouse_click(down_at, mouse.xy) {
             self.set_success(24, 24);
         }
-        if self.quick_32.on_mouse_click(xy) {
+        if self.quick_32.on_mouse_click(down_at, mouse.xy) {
             self.set_success(32, 32);
         }
-        if self.quick_48.on_mouse_click(xy) {
+        if self.quick_48.on_mouse_click(down_at, mouse.xy) {
             self.set_success(48, 48);
         }
-        if self.quick_64.on_mouse_click(xy) {
+        if self.quick_64.on_mouse_click(down_at, mouse.xy) {
             self.set_success(64, 64);
         }
-        if self.quick_8_16.on_mouse_click(xy) {
+        if self.quick_8_16.on_mouse_click(down_at, mouse.xy) {
             self.set_success(8, 16);
         }
     }
 
-    fn update(&mut self, timing: &Timing, _: Coord, _: &[KeyCode]) -> SUR {
+    fn update(&mut self, timing: &Timing, _: &MouseData, _: &[KeyCode]) -> SUR {
         self.width_field.update(timing);
         self.height_field.update(timing);
         self.result.clone()

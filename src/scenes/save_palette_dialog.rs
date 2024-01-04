@@ -107,66 +107,66 @@ impl SavePaletteDataDialog {
 }
 
 impl Scene<SceneResult, SceneName> for SavePaletteDataDialog {
-    fn render(&self, graphics: &mut Graphics, mouse_xy: Coord, _: &[KeyCode]) {
+    fn render(&self, graphics: &mut Graphics, mouse: &MouseData, _: &[KeyCode]) {
         self.background.render(graphics);
         self.title.render(graphics);
-        self.id.render(graphics, mouse_xy);
-        self.name.render(graphics, mouse_xy);
-        self.cancel.render(graphics, mouse_xy);
-        self.save_id.render(graphics, mouse_xy);
-        self.save_no_data.render(graphics, mouse_xy);
-        self.save_name.render(graphics, mouse_xy);
-        self.save_colors.render(graphics, mouse_xy);
+        self.id.render(graphics, mouse);
+        self.name.render(graphics, mouse);
+        self.cancel.render(graphics, mouse);
+        self.save_id.render(graphics, mouse);
+        self.save_no_data.render(graphics, mouse);
+        self.save_name.render(graphics, mouse);
+        self.save_colors.render(graphics, mouse);
 
         if self.show_alert {
-            self.alert.render(graphics, mouse_xy);
+            self.alert.render(graphics, mouse);
         }
     }
 
-    fn on_key_up(&mut self, key: KeyCode, _: Coord, held: &[KeyCode]) {
+    fn on_key_up(&mut self, key: KeyCode, _: &MouseData, held: &[KeyCode]) {
         self.id.on_key_press(key, held);
         self.name.on_key_press(key, held);
     }
 
-    fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, _: &[KeyCode]) {
+    fn on_mouse_click(&mut self, down_at: Coord, mouse:&MouseData,button: MouseButton, _: &[KeyCode]) {
         if button != MouseButton::Left {
             return;
         }
         if self.show_alert {
-            if self.alert.on_mouse_click(xy) == Some(AlertResult::Positive) {
+            if self.alert.on_mouse_click(down_at, mouse.xy) == Some(AlertResult::Positive) {
                 self.show_alert = false;
             }
             return;
         }
-        self.id.on_mouse_click(xy);
-        self.name.on_mouse_click(xy);
+        self.id.on_mouse_click(down_at, mouse.xy);
+        self.name.on_mouse_click(down_at, mouse.xy);
 
-        if self.save_no_data.on_mouse_click(xy) {
+        if self.save_no_data.on_mouse_click(down_at, mouse.xy) {
             self.result = Pop(Some(SavePaletteData(FilePalette::NoData)));
         }
-        if self.save_id.on_mouse_click(xy) {
+        if self.save_id.on_mouse_click(down_at, mouse.xy) {
             if self.name.content().is_empty() {
                 self.alert.change_text(WARN_ID);
                 self.show_alert = true;
             } else {
             }
         }
-        if self.save_name.on_mouse_click(xy) {
+        if self.save_name.on_mouse_click(down_at, mouse.xy) {
             if self.name.content().is_empty() {
                 self.alert.change_text(WARN_NAME);
                 self.show_alert = true;
             } else {
             }
         }
-        if self.save_colors.on_mouse_click(xy) {
+        if self.save_colors.on_mouse_click(down_at, mouse.xy) {
             self.result = Pop(Some(SavePaletteData(FilePalette::Colors)));
         }
-        if self.cancel.on_mouse_click(xy) {
+        if self.cancel.on_mouse_click(down_at, mouse.xy) {
             self.result = Pop(None);
         }
     }
 
-    fn update(&mut self, timing: &Timing, _: Coord, _: &[KeyCode]) -> SUR {
+    fn update(&mut self, timing: &Timing, _: &MouseData, _: &[KeyCode]) -> SUR {
         self.id.update(timing);
         self.name.update(timing);
 

@@ -59,7 +59,7 @@ impl UiElement for Preview {
         &self.bounds
     }
 
-    fn render(&self, graphics: &mut Graphics, _: Coord) {
+    fn render(&self, graphics: &mut Graphics, _: &MouseData) {
         graphics.draw_rect(self.bounds.clone(), fill(COLORS[self.background]));
         let color_width = self.bounds.width() / COLORS.len();
         for (i, color) in COLORS.iter().enumerate() {

@@ -74,7 +74,7 @@ impl UiElement for PaletteView {
         &self.bounds
     }
 
-    fn render(&self, graphics: &mut Graphics, _mouse_xy: Coord) {
+    fn render(&self, graphics: &mut Graphics, _mouse_xy: &MouseData) {
         let orig_trans = graphics.set_translate(self.bounds.top_left() + (0, -self.offset));
         graphics.clip_mut().set_valid_rect(self.bounds.clone());
 

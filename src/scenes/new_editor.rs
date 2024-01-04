@@ -387,7 +387,7 @@ impl Editor {
 }
 
 impl Scene<SceneResult, SceneName> for Editor {
-    fn render(&self, graphics: &mut Graphics, mouse_xy: Coord, _: &[KeyCode]) {
+    fn render(&self, graphics: &mut Graphics, mouse: &MouseData, _: &[KeyCode]) {
         graphics.clear(BACKGROUND);
 
         let name = if let Some(path) = &self.filepath {
@@ -412,24 +412,24 @@ impl Scene<SceneResult, SceneName> for Editor {
         );
         graphics.draw_line((0, NAME_LINE_Y), (WIDTH as isize, NAME_LINE_Y), LIGHT_GRAY);
 
-        self.speed.render(graphics, mouse_xy);
-        self.add_frame.render(graphics, mouse_xy);
-        self.remove_frame.render(graphics, mouse_xy);
-        self.copy_frame.render(graphics, mouse_xy);
-        self.play_pause.render(graphics, mouse_xy);
-        self.tools.render(graphics, mouse_xy);
-        self.save.render(graphics, mouse_xy);
-        self.save_as.render(graphics, mouse_xy);
-        self.clear.render(graphics, mouse_xy);
-        self.close.render(graphics, mouse_xy);
-        self.palette.render(graphics, mouse_xy);
-        self.edit_palette.render(graphics, mouse_xy);
-        self.canvas.render(graphics, mouse_xy);
-        self.preview.render(graphics, mouse_xy);
-        self.timeline.render(graphics, mouse_xy);
+        self.speed.render(graphics, mouse);
+        self.add_frame.render(graphics, mouse);
+        self.remove_frame.render(graphics, mouse);
+        self.copy_frame.render(graphics, mouse);
+        self.play_pause.render(graphics, mouse);
+        self.tools.render(graphics, mouse);
+        self.save.render(graphics, mouse);
+        self.save_as.render(graphics, mouse);
+        self.clear.render(graphics, mouse);
+        self.close.render(graphics, mouse);
+        self.palette.render(graphics, mouse);
+        self.edit_palette.render(graphics, mouse);
+        self.canvas.render(graphics, mouse);
+        self.preview.render(graphics, mouse);
+        self.timeline.render(graphics, mouse);
     }
 
-    fn on_key_down(&mut self, key: KeyCode, _: Coord, held: &[KeyCode]) {
+    fn on_key_down(&mut self, key: KeyCode, _: &MouseData, held: &[KeyCode]) {
         if self.last_undo < Instant::now() {
             if key == KeyCode::KeyZ
                 && !held.contains(&&KeyCode::ShiftLeft)
@@ -464,15 +464,15 @@ impl Scene<SceneResult, SceneName> for Editor {
         }
     }
 
-    fn on_key_up(&mut self, key: KeyCode, _: Coord, held: &[KeyCode]) {
+    fn on_key_up(&mut self, key: KeyCode, _: &MouseData, held: &[KeyCode]) {
         self.speed.on_key_press(key, held);
     }
 
-    fn on_mouse_down(&mut self, xy: Coord, button: MouseButton, _: &[KeyCode]) {
+    fn on_mouse_down(&mut self, mouse: &MouseData, button: MouseButton, _: &[KeyCode]) {
         if button != MouseButton::Left {
             return;
         }
-        if self.canvas.on_mouse_down(xy, &mut self.history) {
+        if self.canvas.on_mouse_down(mouse.xy, &mut self.history) {
             self.canvas
                 .set_image(self.history.get_current_image().clone());
             self.preview.set_image(self.canvas.get_image().clone());
@@ -485,11 +485,11 @@ impl Scene<SceneResult, SceneName> for Editor {
         }
     }
 
-    fn on_mouse_up(&mut self, xy: Coord, button: MouseButton, keys: &[KeyCode]) {
+    fn on_mouse_click(&mut self, down_at: Coord, mouse: &MouseData, button: MouseButton, keys: &[KeyCode]) {
         if button != MouseButton::Left {
             return;
         }
-        if let Some(tool_id) = self.tools.on_mouse_click(xy) {
+        if let Some(tool_id) = self.tools.on_mouse_click(down_at, mouse.xy) {
             match tool_id {
                 TOOL_PENCIL => self.canvas.set_tool(Tool::Pencil),
                 TOOL_LINE => self.canvas.set_tool(Tool::Line),
@@ -498,7 +498,7 @@ impl Scene<SceneResult, SceneName> for Editor {
                 _ => {}
             }
         }
-        if self.play_pause.on_mouse_click(xy) {
+        if self.play_pause.on_mouse_click(down_at, mouse.xy) {
             if self.is_playing {
                 self.is_playing = false;
                 self.add_frame.set_state(ElementState::Normal);
@@ -525,7 +525,7 @@ impl Scene<SceneResult, SceneName> for Editor {
                 self.edit_palette.set_state(ElementState::Disabled);
             }
         }
-        if self.add_frame.on_mouse_click(xy) {
+        if self.add_frame.on_mouse_click(down_at, mouse.xy) {
             self.history.add_blank_frame().unwrap();
             self.timeline
                 .set_frames(self.history.get_images(), self.history.active_frame());
@@ -533,7 +533,7 @@ impl Scene<SceneResult, SceneName> for Editor {
                 self.relayout_canvas(true);
             }
         }
-        if self.remove_frame.on_mouse_click(xy) {
+        if self.remove_frame.on_mouse_click(down_at, mouse.xy) {
             self.history.remove_frame().unwrap();
             self.timeline
                 .set_frames(self.history.get_images(), self.history.active_frame());
@@ -541,7 +541,7 @@ impl Scene<SceneResult, SceneName> for Editor {
                 self.relayout_canvas(false);
             }
         }
-        if self.copy_frame.on_mouse_click(xy) {
+        if self.copy_frame.on_mouse_click(down_at, mouse.xy) {
             self.history.add_duplicate_frame().unwrap();
             self.timeline
                 .set_frames(self.history.get_images(), self.history.active_frame());
@@ -549,13 +549,13 @@ impl Scene<SceneResult, SceneName> for Editor {
                 self.relayout_canvas(true);
             }
         }
-        if self.close.on_mouse_click(xy) {
+        if self.close.on_mouse_click(down_at, mouse.xy) {
             self.result = Pop(None);
         }
-        if self.clear.on_mouse_click(xy) {
+        if self.clear.on_mouse_click(down_at, mouse.xy) {
             self.history.add_clear().unwrap();
         }
-        if self.save.on_mouse_click(xy) {
+        if self.save.on_mouse_click(down_at, mouse.xy) {
             let idx = if keys.contains(&&KeyCode::ShiftLeft) || self.history.frame_count() == 1
             {
                 Some(self.history.active_frame())
@@ -568,7 +568,7 @@ impl Scene<SceneResult, SceneName> for Editor {
                 self.open_save_as(idx);
             }
         }
-        if self.save_as.on_mouse_click(xy) {
+        if self.save_as.on_mouse_click(down_at, mouse.xy) {
             let idx = if keys.contains(&&KeyCode::ShiftLeft) || self.history.frame_count() == 1
             {
                 Some(self.history.active_frame())
@@ -577,8 +577,8 @@ impl Scene<SceneResult, SceneName> for Editor {
             };
             self.open_save_as(idx);
         }
-        self.speed.on_mouse_click(xy);
-        if self.edit_palette.on_mouse_click(xy) {
+        self.speed.on_mouse_click(down_at, mouse.xy);
+        if self.edit_palette.on_mouse_click(down_at, mouse.xy) {
             let colors = self
                 .canvas
                 .get_image()
@@ -588,13 +588,13 @@ impl Scene<SceneResult, SceneName> for Editor {
                 .collect();
             self.result = SceneUpdateResult::Push(false, SceneName::Palette(colors));
         }
-        if self.palette.on_mouse_click(xy) {
+        if self.palette.on_mouse_click(mouse.xy) {
             self.canvas.set_color_index(self.palette.get_selected_idx());
         }
-        self.canvas.on_mouse_up(xy, &mut self.history);
-        let background_color = self.preview.on_mouse_click(xy);
+        self.canvas.on_mouse_up(mouse.xy, &mut self.history);
+        let background_color = self.preview.on_mouse_click(mouse.xy);
         self.timeline.set_background(background_color);
-        if let Some(frame) = self.timeline.on_mouse_click(xy) {
+        if let Some(frame) = self.timeline.on_mouse_click(mouse.xy) {
             self.history.add_frame_select(frame).unwrap();
         }
 
@@ -605,15 +605,15 @@ impl Scene<SceneResult, SceneName> for Editor {
             .update_frame(self.history.get_current_image().clone());
     }
 
-    fn on_scroll(&mut self, xy: Coord, x_diff: isize, y_diff: isize, _: &[KeyCode]) {
-        self.palette.on_scroll(xy, y_diff);
-        self.timeline.on_scroll(xy, x_diff);
+    fn on_scroll(&mut self, mouse: &MouseData, x_diff: isize, y_diff: isize, _: &[KeyCode]) {
+        self.palette.on_scroll(mouse.xy, y_diff);
+        self.timeline.on_scroll(mouse.xy, x_diff);
     }
 
     fn update(
         &mut self,
         timing: &Timing,
-        _xy: Coord,
+        _: &MouseData,
         _: &[KeyCode],
     ) -> SceneUpdateResult<SceneResult, SceneName> {
         self.speed.update(timing);
