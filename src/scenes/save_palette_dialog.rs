@@ -128,7 +128,13 @@ impl Scene<SceneResult, SceneName> for SavePaletteDataDialog {
         self.name.on_key_press(key, held);
     }
 
-    fn on_mouse_click(&mut self, down_at: Coord, mouse:&MouseData,button: MouseButton, _: &[KeyCode]) {
+    fn on_mouse_click(
+        &mut self,
+        down_at: Coord,
+        mouse: &MouseData,
+        button: MouseButton,
+        _: &[KeyCode],
+    ) {
         if button != MouseButton::Left {
             return;
         }

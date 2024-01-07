@@ -1,6 +1,6 @@
 [package]
 name = "image-editor"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 authors = ["Emma Britton <emmabritton@pm.me>"]
 description = "Simple image editor for ICI files"
@@ -15,7 +15,7 @@ lto = true
 codegen-units = 1
 
 [dependencies]
-pixels-graphics-lib = { version = "0.15.2", default-features = false, features = ["window_prefs", "scenes"] }
+pixels-graphics-lib = { version="0.15.4", default-features = false, features = ["window_prefs", "scenes"] }
 color-eyre = "0.6.2"
 log = "0.4.20"
 directories = "5.0.1"

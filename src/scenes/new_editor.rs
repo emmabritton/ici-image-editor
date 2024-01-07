@@ -1,8 +1,7 @@
-use crate::palettes::Palette;
 use crate::scenes::{file_dialog, BACKGROUND};
 use crate::ui::canvas::{Canvas, Tool};
 use crate::ui::palette::PaletteView;
-use crate::{SceneName, SceneResult, SUR, WIDTH};
+use crate::{SceneName, SceneResult, Settings, SUR, WIDTH};
 
 use log::error;
 use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
@@ -11,6 +10,7 @@ use pixels_graphics_lib::scenes::SceneUpdateResult::{Nothing, Pop};
 use pixels_graphics_lib::ui::prelude::TextFilter::Decimal;
 use pixels_graphics_lib::ui::prelude::*;
 
+use crate::palettes::palette_default;
 use crate::ui::edit_history::EditHistory;
 use crate::ui::preview::Preview;
 use crate::ui::timeline::Timeline;
@@ -46,7 +46,7 @@ const CORRUPT: &str = "???";
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum EditorDetails {
-    Open(String),
+    Open(PathBuf),
     New(u8, u8),
 }
 
@@ -77,6 +77,7 @@ pub struct Editor {
     is_playing: bool,
     next_frame_swap: f64,
     anim_frame_idx: usize,
+    prefs: AppPrefs<Settings>
 }
 
 impl Editor {
@@ -84,8 +85,9 @@ impl Editor {
         width: usize,
         height: usize,
         details: EditorDetails,
+        mut prefs: AppPrefs<Settings>,
         style: &UiStyle,
-    ) -> Box<Editor> {
+    ) -> Box<Self> {
         let save = Button::new((PADDING, BUTTON_Y), "Save", None, &style.button);
         let save_as = Button::new(
             (save.bounds().bottom_right().x + PADDING, BUTTON_Y),
@@ -207,9 +209,10 @@ impl Editor {
         let mut filepath = None;
         let frames = match details {
             EditorDetails::Open(path) => {
-                let is_animated = path.contains(".ica");
-                filepath = Some(path.clone());
-                let bytes = fs::read(path).expect("Reading image from file");
+                let file = path.to_string_lossy().to_string();
+                filepath = Some(file.clone());
+                let is_animated = file.contains(".ica");
+                let bytes = fs::read(path.clone()).expect("Reading image from file");
                 let (image, pal) = if is_animated {
                     let (image, pal) = AnimatedIndexedImage::from_file_contents(&bytes)
                         .expect("Reading animated image data");
@@ -223,17 +226,15 @@ impl Editor {
                 if pal != FilePalette::Colors {
                     panic!("Currently {pal:?} isn't supported");
                 }
+                prefs.data.last_used_dir = path;
+                prefs.save();
                 image
             }
             EditorDetails::New(w, h) => {
                 vec![IndexedImage::new(
                     w,
                     h,
-                    Palette::default()
-                        .colors
-                        .iter()
-                        .map(|c| c.to_ici())
-                        .collect(),
+                    palette_default().colors,
                     vec![0; w as usize * h as usize],
                 )
                 .unwrap()]
@@ -289,6 +290,7 @@ impl Editor {
             is_playing: false,
             next_frame_swap: 0.0,
             anim_frame_idx: 0,
+            prefs
         };
         editor.relayout_canvas(frames.len() > 1);
         Box::new(editor)
@@ -300,8 +302,10 @@ impl Editor {
         } else {
             &[("AnimatedIndexedImage", "ica")]
         };
-        if let Some(path) = file_dialog(&self.filepath, filters).save_file() {
+        if let Some(path) = file_dialog(self.prefs.data.last_used_dir.clone(), filters).save_file() {
             self.filepath = Some(path.to_string_lossy().to_string());
+            self.prefs.data.last_used_dir = path;
+            self.prefs.save();
             self.save_file(frame_idx);
         }
     }
@@ -433,8 +437,7 @@ impl Scene<SceneResult, SceneName> for Editor {
         if self.last_undo < Instant::now() {
             if key == KeyCode::KeyZ
                 && !held.contains(&&KeyCode::ShiftLeft)
-                && (held.contains(&&KeyCode::ControlLeft)
-                    || held.contains(&&KeyCode::SuperLeft))
+                && (held.contains(&&KeyCode::ControlLeft) || held.contains(&&KeyCode::SuperLeft))
             {
                 self.history.undo().unwrap();
                 self.last_undo = Instant::now().add(Duration::from_millis(PER_UNDO));
@@ -448,8 +451,7 @@ impl Scene<SceneResult, SceneName> for Editor {
             }
             if ((key == KeyCode::KeyZ && held.contains(&&KeyCode::ShiftLeft))
                 || key == KeyCode::KeyY)
-                && (held.contains(&&KeyCode::ControlLeft)
-                    || held.contains(&&KeyCode::SuperLeft))
+                && (held.contains(&&KeyCode::ControlLeft) || held.contains(&&KeyCode::SuperLeft))
             {
                 self.history.redo().unwrap();
                 self.last_undo = Instant::now().add(Duration::from_millis(PER_UNDO));
@@ -485,7 +487,13 @@ impl Scene<SceneResult, SceneName> for Editor {
         }
     }
 
-    fn on_mouse_click(&mut self, down_at: Coord, mouse: &MouseData, button: MouseButton, keys: &[KeyCode]) {
+    fn on_mouse_click(
+        &mut self,
+        down_at: Coord,
+        mouse: &MouseData,
+        button: MouseButton,
+        keys: &[KeyCode],
+    ) {
         if button != MouseButton::Left {
             return;
         }
@@ -556,8 +564,7 @@ impl Scene<SceneResult, SceneName> for Editor {
             self.history.add_clear().unwrap();
         }
         if self.save.on_mouse_click(down_at, mouse.xy) {
-            let idx = if keys.contains(&&KeyCode::ShiftLeft) || self.history.frame_count() == 1
-            {
+            let idx = if keys.contains(&&KeyCode::ShiftLeft) || self.history.frame_count() == 1 {
                 Some(self.history.active_frame())
             } else {
                 None
@@ -569,8 +576,7 @@ impl Scene<SceneResult, SceneName> for Editor {
             }
         }
         if self.save_as.on_mouse_click(down_at, mouse.xy) {
-            let idx = if keys.contains(&&KeyCode::ShiftLeft) || self.history.frame_count() == 1
-            {
+            let idx = if keys.contains(&&KeyCode::ShiftLeft) || self.history.frame_count() == 1 {
                 Some(self.history.active_frame())
             } else {
                 None

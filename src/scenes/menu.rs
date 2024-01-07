@@ -1,29 +1,25 @@
 use crate::scenes::new_editor::EditorDetails;
 use crate::scenes::{file_dialog, BACKGROUND};
 use crate::SceneUpdateResult::{Nothing, Push};
-use crate::{Scene, SceneName, SceneResult, SUR};
-use pixels_graphics_lib::ui::prelude::*;
-use pixels_graphics_lib::prelude::*;
-use pixels_graphics_lib::prelude::TextSize::Large;
+use crate::{Scene, SceneName, SceneResult, Settings, SUR};
 use color_eyre::Result;
+use pixels_graphics_lib::prelude::TextSize::Large;
+use pixels_graphics_lib::prelude::*;
+use pixels_graphics_lib::ui::prelude::*;
 
 const LOGO_POS: Coord = Coord::new(10, 10);
 const NEW_POS: Coord = Coord::new(10, 50);
 const LOAD_POS: Coord = Coord::new(10, 70);
 
-#[derive(Debug)]
 pub struct Menu {
     result: SUR,
     logo: Image,
     new_button: Button,
     load_button: Button,
+    prefs: AppPrefs<Settings>
 }
 
-fn make_image(
-    width: usize,
-    height: usize,
-    method: fn(&mut Graphics),
-) -> Result<Image> {
+fn make_image(width: usize, height: usize, method: fn(&mut Graphics)) -> Result<Image> {
     let mut buffer = vec![0_u8; width * height * 4];
     let mut graphics = Graphics::new(&mut buffer, width, height)?;
     method(&mut graphics);
@@ -31,7 +27,7 @@ fn make_image(
 }
 
 impl Menu {
-    pub fn new(button_style: &ButtonStyle) -> Box<Self> {
+    pub fn new(prefs: AppPrefs<Settings>, button_style: &ButtonStyle) -> Box<Self> {
         let logo = make_image(60, 40, |graphics| {
             graphics.draw_text(
                 "ici Image Editor",
@@ -47,6 +43,7 @@ impl Menu {
             logo,
             new_button,
             load_button,
+            prefs
         })
     }
 }
@@ -63,7 +60,13 @@ impl Scene<SceneResult, SceneName> for Menu {
 
     fn on_key_up(&mut self, _: KeyCode, _: &MouseData, _: &[KeyCode]) {}
 
-    fn on_mouse_click(&mut self, down_at: Coord, mouse: &MouseData, button: MouseButton, _: &[KeyCode]) {
+    fn on_mouse_click(
+        &mut self,
+        down_at: Coord,
+        mouse: &MouseData,
+        button: MouseButton,
+        _: &[KeyCode],
+    ) {
         if button != MouseButton::Left {
             return;
         }
@@ -72,14 +75,14 @@ impl Scene<SceneResult, SceneName> for Menu {
         }
         if self.load_button.on_mouse_click(down_at, mouse.xy) {
             if let Some(path) = file_dialog(
-                &None,
+                self.prefs.data.last_used_dir.clone(),
                 &[("IndexedImage", "ici"), ("AnimatedIndexedImage", "ica")],
             )
             .pick_file()
             {
                 self.result = Push(
                     false,
-                    SceneName::Editor(EditorDetails::Open(path.to_string_lossy().to_string())),
+                    SceneName::Editor(EditorDetails::Open(path)),
                 );
             }
         }
@@ -90,6 +93,7 @@ impl Scene<SceneResult, SceneName> for Menu {
     }
 
     fn resuming(&mut self, _result: Option<SceneResult>) {
+        self.prefs.reload();
         self.result = Nothing;
     }
 

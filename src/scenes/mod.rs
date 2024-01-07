@@ -17,18 +17,13 @@ const BACKGROUND: Color = Color {
     a: 255,
 };
 
-fn file_dialog(path: &Option<String>, filters: &[(&str, &str)]) -> FileDialog {
+fn file_dialog(path: PathBuf, filters: &[(&str, &str)]) -> FileDialog {
     let mut dialog = FileDialog::new();
     for filter in filters {
         dialog = dialog.add_filter(filter.0, &[filter.1]);
     }
-    if let Some(filepath) = path {
-        let path = PathBuf::from(filepath);
-        let parent_dir = path
-            .parent()
-            .map(|p| p.to_path_buf())
-            .unwrap_or(PathBuf::from("/"));
-        dialog = dialog.set_directory(parent_dir);
+    if path.exists() {
+        dialog = dialog.set_directory(path);
     } else {
         let docs_dir = UserDirs::new()
             .and_then(|ud| ud.document_dir().map(|p| p.to_path_buf()))

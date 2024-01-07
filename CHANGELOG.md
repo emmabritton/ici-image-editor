@@ -1,5 +1,11 @@
 # Changelog
 
+### Version 0.4.1
+- Use last save/load directory
+- Adaptive pencil history
+- Keep selected palette index
+- Add ability to set default palette
+
 ### Version 0.4.0
 - Add support for animated images
 
