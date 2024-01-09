@@ -2,6 +2,13 @@
 
 Used to edit ICI images (`IndexedImage` and `AnimatedIndexedImage`) from [ici-files](https://github.com/emmabritton/ici-files)
 
+## Usage
+
+Open the program normally
+
+or set a default palette for normal images with
+`./image-editor /path/to/palette`
+
 ## Controls
 
 * Undo - Ctrl+Z, Cmd+Z

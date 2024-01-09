@@ -1,7 +1,7 @@
 use crate::scenes::{file_dialog, BACKGROUND};
 use crate::ui::canvas::{Canvas, Tool};
 use crate::ui::palette::PaletteView;
-use crate::{SceneName, SceneResult, Settings, SUR, WIDTH};
+use crate::{DefaultPalette, SceneName, SceneResult, Settings, SUR, WIDTH};
 
 use log::error;
 use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
@@ -86,6 +86,7 @@ impl Editor {
         height: usize,
         details: EditorDetails,
         mut prefs: AppPrefs<Settings>,
+        default_palette: DefaultPalette,
         style: &UiStyle,
     ) -> Box<Self> {
         let save = Button::new((PADDING, BUTTON_Y), "Save", None, &style.button);
@@ -231,13 +232,12 @@ impl Editor {
                 image
             }
             EditorDetails::New(w, h) => {
-                vec![IndexedImage::new(
-                    w,
-                    h,
-                    palette_default().colors,
-                    vec![0; w as usize * h as usize],
-                )
-                    .unwrap()]
+                let colors = if let DefaultPalette::Palette(_, colors) = default_palette {
+                    colors
+                } else {
+                    palette_default().colors
+                };
+                vec![IndexedImage::new(w, h, colors, vec![0; w as usize * h as usize]).unwrap()]
             }
         };
 
@@ -335,7 +335,7 @@ impl Editor {
                     pixels,
                     PlayType::Loops,
                 )
-                    .unwrap();
+                .unwrap();
                 let bytes = image
                     .to_file_contents(&FilePalette::Colors)
                     .expect("Unable to save ica file (converting)");
@@ -440,9 +440,9 @@ impl Scene<SceneResult, SceneName> for Editor {
                 && !held.contains(&KeyCode::ShiftLeft)
                 && !held.contains(&KeyCode::ShiftRight)
                 && (held.contains(&KeyCode::ControlLeft)
-                || held.contains(&KeyCode::SuperLeft)
-                || held.contains(&KeyCode::ControlRight)
-                || held.contains(&KeyCode::SuperRight))
+                    || held.contains(&KeyCode::SuperLeft)
+                    || held.contains(&KeyCode::ControlRight)
+                    || held.contains(&KeyCode::SuperRight))
             {
                 self.history.undo().unwrap();
                 self.last_undo = Instant::now().add(Duration::from_millis(PER_UNDO));
@@ -458,9 +458,9 @@ impl Scene<SceneResult, SceneName> for Editor {
                 && (held.contains(&KeyCode::ShiftLeft) || held.contains(&KeyCode::ShiftRight)))
                 || key == KeyCode::KeyY)
                 && (held.contains(&KeyCode::ControlLeft)
-                || held.contains(&KeyCode::SuperLeft)
-                || held.contains(&KeyCode::ControlRight)
-                || held.contains(&KeyCode::SuperRight))
+                    || held.contains(&KeyCode::SuperLeft)
+                    || held.contains(&KeyCode::ControlRight)
+                    || held.contains(&KeyCode::SuperRight))
             {
                 self.history.redo().unwrap();
                 self.last_undo = Instant::now().add(Duration::from_millis(PER_UNDO));
@@ -653,9 +653,9 @@ impl Scene<SceneResult, SceneName> for Editor {
                 self.copy_frame.set_state(ElementState::Normal);
             }
 
-
             if mouse.is_down(MouseButton::Left).is_some()
-                && self.canvas.on_mouse_down(mouse.xy, &mut self.history) {
+                && self.canvas.on_mouse_down(mouse.xy, &mut self.history)
+            {
                 self.canvas
                     .set_image(self.history.get_current_image().clone());
                 self.preview.set_image(self.canvas.get_image().clone());

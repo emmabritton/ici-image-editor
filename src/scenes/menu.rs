@@ -1,21 +1,23 @@
 use crate::scenes::new_editor::EditorDetails;
 use crate::scenes::{file_dialog, BACKGROUND};
 use crate::SceneUpdateResult::{Nothing, Push};
-use crate::{Scene, SceneName, SceneResult, Settings, SUR};
+use crate::{DefaultPalette, Scene, SceneName, SceneResult, Settings, SUR};
 use color_eyre::Result;
-use pixels_graphics_lib::prelude::TextSize::Large;
+use pixels_graphics_lib::prelude::TextSize::{Large, Normal};
 use pixels_graphics_lib::prelude::*;
 use pixels_graphics_lib::ui::prelude::*;
 
 const LOGO_POS: Coord = Coord::new(10, 10);
 const NEW_POS: Coord = Coord::new(10, 50);
 const LOAD_POS: Coord = Coord::new(10, 70);
+const PALETTE_INFO_POS: TextPos = TextPos::Px(10, 100);
 
 pub struct Menu {
     result: SUR,
     logo: Image,
     new_button: Button,
     load_button: Button,
+    default_palette: DefaultPalette,
     prefs: AppPrefs<Settings>,
 }
 
@@ -27,7 +29,11 @@ fn make_image(width: usize, height: usize, method: fn(&mut Graphics)) -> Result<
 }
 
 impl Menu {
-    pub fn new(prefs: AppPrefs<Settings>, button_style: &ButtonStyle) -> Box<Self> {
+    pub fn new(
+        prefs: AppPrefs<Settings>,
+        palette: DefaultPalette,
+        button_style: &ButtonStyle,
+    ) -> Box<Self> {
         let logo = make_image(60, 40, |graphics| {
             graphics.draw_text(
                 "ici Image Editor",
@@ -44,6 +50,7 @@ impl Menu {
             new_button,
             load_button,
             prefs,
+            default_palette: palette,
         })
     }
 }
@@ -53,6 +60,20 @@ impl Scene<SceneResult, SceneName> for Menu {
         graphics.clear(BACKGROUND);
 
         graphics.draw_image(LOGO_POS, &self.logo);
+
+        match &self.default_palette {
+            DefaultPalette::NoPalette => {}
+            DefaultPalette::Error(err) => graphics.draw_text(
+                &format!("Error: {err}"),
+                PALETTE_INFO_POS,
+                (RED, Normal, WrappingStrategy::SpaceBeforeCol(36)),
+            ),
+            DefaultPalette::Palette(path, colors) => graphics.draw_text(
+                &format!("Using palette {path} with {} colors", colors.len()),
+                PALETTE_INFO_POS,
+                (WHITE, Normal, WrappingStrategy::SpaceBeforeCol(36)),
+            ),
+        }
 
         self.new_button.render(graphics, mouse);
         self.load_button.render(graphics, mouse);

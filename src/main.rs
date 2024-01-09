@@ -14,6 +14,7 @@ use pixels_graphics_lib::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::path::PathBuf;
+use std::{env, fs};
 
 #[allow(clippy::upper_case_acronyms)]
 type SUR = SceneUpdateResult<SceneResult, SceneName>;
@@ -49,27 +50,30 @@ fn main() -> Result<()> {
         .init();
     color_eyre::install()?;
 
-    let switcher: SceneSwitcher<SceneResult, SceneName> = |style, list, name| {
-        match name {
-            SceneName::Editor(details) => {
-                list.push(Editor::new(WIDTH, HEIGHT, details, settings(), style))
-            }
-            SceneName::NewImage => list.push(NewImageDialog::new(WIDTH, HEIGHT, style)),
-            SceneName::Palette(colors, selected) => list.push(PaletteDialog::new(
-                colors,
-                WIDTH,
-                HEIGHT,
-                selected,
-                settings(),
-                &style.dialog,
-            )),
-            SceneName::SavePaletteData => list.push(SavePaletteDataDialog::new(
-                WIDTH,
-                HEIGHT,
-                &style.alert,
-                &style.dialog,
-            )),
-        }
+    let switcher: SceneSwitcher<SceneResult, SceneName> = |style, list, name| match name {
+        SceneName::Editor(details) => list.push(Editor::new(
+            WIDTH,
+            HEIGHT,
+            details,
+            settings(),
+            load_default_palette(),
+            style,
+        )),
+        SceneName::NewImage => list.push(NewImageDialog::new(WIDTH, HEIGHT, style)),
+        SceneName::Palette(colors, selected) => list.push(PaletteDialog::new(
+            colors,
+            WIDTH,
+            HEIGHT,
+            selected,
+            settings(),
+            &style.dialog,
+        )),
+        SceneName::SavePaletteData => list.push(SavePaletteDataDialog::new(
+            WIDTH,
+            HEIGHT,
+            &style.alert,
+            &style.dialog,
+        )),
     };
 
     let mut options = Options::default();
@@ -81,10 +85,40 @@ fn main() -> Result<()> {
         "Image Editor",
         Some(WindowPreferences::new("app", "emmabritton", "image_editor", 1).unwrap()),
         switcher,
-        Menu::new(settings(), &options.style.button),
+        Menu::new(settings(), load_default_palette(), &options.style.button),
         options,
     )?;
     Ok(())
+}
+
+enum DefaultPalette {
+    NoPalette,
+    Error(String),
+    Palette(String, Vec<IciColor>),
+}
+
+fn load_default_palette() -> DefaultPalette {
+    if env::args().len() > 1 {
+        let palette_option = env::args().nth(1).unwrap_or_default();
+        return match fs::read_to_string(&palette_option) {
+            Ok(data) => match JascPalette::from_file_contents(&data) {
+                Ok(palette) => {
+                    if palette.colors.is_empty() {
+                        DefaultPalette::Error(format!("Palette {palette_option} was empty"))
+                    } else {
+                        DefaultPalette::Palette(palette_option, palette.colors)
+                    }
+                }
+                Err(e) => {
+                    DefaultPalette::Error(format!("Invalid palette file: {palette_option}: {e}"))
+                }
+            },
+            Err(e) => DefaultPalette::Error(format!(
+                "Unable to read palette file: {palette_option}: {e}"
+            )),
+        };
+    }
+    DefaultPalette::NoPalette
 }
 
 #[derive(Debug, Clone, PartialEq)]
