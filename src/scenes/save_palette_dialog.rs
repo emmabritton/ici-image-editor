@@ -1,9 +1,11 @@
+use log::warn;
 use crate::SceneResult::SavePaletteData;
-use crate::{SceneName, SceneResult, SUR};
+use crate::{SceneName, SceneResult, Settings, SUR};
 use pixels_graphics_lib::buffer_graphics_lib::prelude::Positioning::CenterTop;
 use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
 use pixels_graphics_lib::prelude::SceneUpdateResult::*;
 use pixels_graphics_lib::prelude::*;
+use pixels_graphics_lib::prelude::TextSize::Small;
 use pixels_graphics_lib::ui::prelude::*;
 
 const WARN_ID: &[&str] = &["ID must be between", "0 and 65535"];
@@ -20,14 +22,21 @@ pub struct SavePaletteDataDialog {
     id: TextField,
     name: TextField,
     alert: Alert,
+    settings: AppPrefs<Settings>,
+    default_checkbox: Rect,
+    default_text: Text,
     title: Text,
     show_alert: bool,
+    indicator: Option<Coord>,
+    check: IndexedImage
 }
 
 impl SavePaletteDataDialog {
     pub fn new(
         width: usize,
         height: usize,
+        pal: Option<FilePalette>,
+        settings: AppPrefs<Settings>,
         alert_style: &AlertStyle,
         style: &DialogStyle,
     ) -> Box<Self> {
@@ -41,19 +50,19 @@ impl SavePaletteDataDialog {
             (style.text, TextSize::Normal, CenterTop),
         );
         let save_no_data = Button::new(
-            dialog_pos + (8, 25),
+            dialog_pos + (16, 25),
             "Don't include",
             button_width,
             &style.button,
         );
         let save_id = Button::new(
-            dialog_pos + (8, 50),
+            dialog_pos + (16, 50),
             "Save as ID",
             button_width,
             &style.button,
         );
-        let id = TextField::new(
-            dialog_pos + (100, 53),
+        let mut id = TextField::new(
+            dialog_pos + (108, 53),
             5,
             TextSize::Normal,
             (None, None),
@@ -62,14 +71,14 @@ impl SavePaletteDataDialog {
             &style.text_field,
         );
         let save_name = Button::new(
-            dialog_pos + (8, 75),
+            dialog_pos + (16, 75),
             "Save as name",
             button_width,
             &style.button,
         );
-        let name = TextField::new(
-            dialog_pos + (8, 96),
-            36,
+        let mut name = TextField::new(
+            dialog_pos + (16, 96),
+            35,
             TextSize::Small,
             (None, None),
             "",
@@ -77,19 +86,56 @@ impl SavePaletteDataDialog {
             &style.text_field,
         );
         let save_colors = Button::new(
-            dialog_pos + (8, 112),
+            dialog_pos + (16, 112),
             "Include color list",
             button_width,
             &style.button,
         );
+        let default_checkbox = Rect::new_with_size(dialog_pos + (16, 132), 8,8);
+        let default_text = Text::new("Use by default", TextPos::px(dialog_pos + (27, 134) ), (WHITE, Small));
         let cancel = Button::new(
             dialog_pos + (55, 146),
             "Cancel",
             button_width,
             &style.button,
         );
+        let mut indicator = None;
+        let check = IndexedImage::from_file_contents(include_bytes!("../../assets/icons/check.ici")).unwrap().0;
+        match pal {
+            None => {}
+            Some(pal) => match pal {
+                FilePalette::NoData => {
+                    indicator = Some(
+                        save_no_data.bounds().top_left()
+                            + (-8, (save_no_data.bounds().height() / 2) as isize),
+                    );
+                }
+                FilePalette::ID(num) => {
+                    indicator = Some(
+                        save_id.bounds().top_left()
+                            + (-8, (save_id.bounds().height() / 2) as isize),
+                    );
+                    id.set_content(&format!("{num}"));
+                }
+                FilePalette::Name(str) => {
+                    indicator = Some(
+                        save_name.bounds().top_left()
+                            + (-8, (save_name.bounds().height() / 2) as isize),
+                    );
+                    name.set_content(&str);
+                }
+                FilePalette::Colors => {
+                    indicator = Some(
+                        save_colors.bounds().top_left()
+                            + (-8, (save_colors.bounds().height() / 2) as isize),
+                    )
+                }
+            },
+        }
         let result = Nothing;
         Box::new(SavePaletteDataDialog {
+            default_checkbox,
+            indicator,
             result,
             background,
             cancel,
@@ -102,6 +148,9 @@ impl SavePaletteDataDialog {
             alert,
             title,
             show_alert: false,
+            check,
+            settings,
+            default_text
         })
     }
 }
@@ -117,6 +166,18 @@ impl Scene<SceneResult, SceneName> for SavePaletteDataDialog {
         self.save_no_data.render(graphics, mouse);
         self.save_name.render(graphics, mouse);
         self.save_colors.render(graphics, mouse);
+
+        if let Some(indicator) = self.indicator {
+            let triangle =
+                Triangle::right_angle(indicator, 8, AnglePosition::Right).move_center_to(indicator);
+            graphics.draw_triangle(triangle, fill(WHITE));
+        }
+
+        self.default_text.render(graphics);
+        graphics.draw_rect(self.default_checkbox.clone(), fill(WHITE));
+        if self.settings.data.use_colors {
+            graphics.draw_indexed_image(self.default_checkbox.top_left() + (1,1), &self.check);
+        }
 
         if self.show_alert {
             self.alert.render(graphics, mouse);
@@ -147,14 +208,26 @@ impl Scene<SceneResult, SceneName> for SavePaletteDataDialog {
         self.id.on_mouse_click(down_at, mouse.xy);
         self.name.on_mouse_click(down_at, mouse.xy);
 
+        if self.default_checkbox.contains(mouse.xy) {
+            self.settings.data.use_colors = !self.settings.data.use_colors;
+            self.settings.save();
+        }
         if self.save_no_data.on_mouse_click(down_at, mouse.xy) {
             self.result = Pop(Some(SavePaletteData(FilePalette::NoData)));
         }
         if self.save_id.on_mouse_click(down_at, mouse.xy) {
-            if self.name.content().is_empty() {
+            if self.id.content().is_empty() {
                 self.alert.change_text(WARN_ID);
                 self.show_alert = true;
             } else {
+                match self.id.content().parse::<u16>() {
+                    Ok(id) => self.result = Pop(Some(SavePaletteData(FilePalette::ID(id)))),
+                    Err(e) => {
+                        warn!("{e:?}");
+                        self.alert.change_text(WARN_ID);
+                        self.show_alert = true;
+                    }
+                }
             }
         }
         if self.save_name.on_mouse_click(down_at, mouse.xy) {
@@ -162,6 +235,7 @@ impl Scene<SceneResult, SceneName> for SavePaletteDataDialog {
                 self.alert.change_text(WARN_NAME);
                 self.show_alert = true;
             } else {
+                self.result = Pop(Some(SavePaletteData(FilePalette::Name(self.name.content().to_string()))));
             }
         }
         if self.save_colors.on_mouse_click(down_at, mouse.xy) {

@@ -4,6 +4,8 @@
 - Use last save/load directory
 - Keep selected palette index
 - Add ability to set default palette
+- Add 'are you sure' for clear and close
+- Add support for other palette types
 
 ### Version 0.4.0
 - Add support for animated images

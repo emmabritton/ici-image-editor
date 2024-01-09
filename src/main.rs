@@ -26,6 +26,7 @@ const HEIGHT: usize = 240;
 struct Settings {
     pub last_used_dir: PathBuf,
     pub last_used_pal_dir: PathBuf,
+    pub use_colors: bool
 }
 
 fn settings() -> AppPrefs<Settings> {
@@ -36,6 +37,7 @@ fn settings() -> AppPrefs<Settings> {
         last_used_pal_dir: UserDirs::new()
             .and_then(|ud| ud.document_dir().map(|p| p.to_path_buf()))
             .unwrap_or(PathBuf::from("/")),
+        use_colors: true
     })
     .expect("Unable to create prefs file")
 }
@@ -68,9 +70,11 @@ fn main() -> Result<()> {
             settings(),
             &style.dialog,
         )),
-        SceneName::SavePaletteData => list.push(SavePaletteDataDialog::new(
+        SceneName::SavePaletteData(pal) => list.push(SavePaletteDataDialog::new(
             WIDTH,
             HEIGHT,
+            pal,
+            settings(),
             &style.alert,
             &style.dialog,
         )),
@@ -126,13 +130,11 @@ enum SceneName {
     Editor(EditorDetails),
     NewImage,
     Palette(Vec<Color>, usize),
-    #[allow(unused)] //will be one day
-    SavePaletteData,
+    SavePaletteData(Option<FilePalette>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 enum SceneResult {
-    #[allow(unused)] //will be one day
     SavePaletteData(FilePalette),
     Palette(Vec<Color>, usize),
 }
