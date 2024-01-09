@@ -76,6 +76,17 @@ impl EditHistory {
         &self.edited_images[idx]
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.events.is_empty()
+    }
+
+    pub fn is_frame_empty(&self) -> bool {
+        self.edited_images[self.active_frame]
+            .get_pixels()
+            .iter()
+            .all(|&n| n == 0)
+    }
+
     pub fn get_images(&self) -> Vec<IndexedImage> {
         self.edited_images.clone()
     }

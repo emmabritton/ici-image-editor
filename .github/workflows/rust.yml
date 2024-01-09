@@ -16,63 +16,20 @@ env:
 
 jobs:
 
-  rustfmt:
-    runs-on: ubuntu-20.04
+  check:
+    runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
 
-      - name: Checkout
-        uses: actions/checkout@v2
+      - name: Install linux libs
+        run: sudo apt-get update; sudo apt-get install --no-install-recommends pkg-config build-essential gcc-multilib libudev-dev libgtk-3-dev
 
-      - name: Get Rust toolchain with rustfmt
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          override: true
-          toolchain: stable
-          components: rustfmt
-
-      - name: Run cargo fmt --all -- --check
+      - name: fmt
         run: cargo fmt --all -- --check
-
-  clippy:
-    runs-on: ubuntu-20.04
-    steps:
-
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Get stable Rust toolchain with clippy
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          override: true
-          toolchain: stable
-          components: clippy
-
-      - name: Install linux libs
-        run: sudo apt-get update; sudo apt-get install --no-install-recommends pkg-config build-essential libgtk-3-dev
-
-      - name: Run cargo clippy --all-targets -- -D clippy::all
+      - name: clippy
         run: cargo clippy --all-targets -- -D clippy::all
-
-  test:
-    runs-on: ubuntu-20.04
-    steps:
-
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Get stable Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-
-      - name: Install linux libs
-        run: sudo apt-get update; sudo apt-get install --no-install-recommends pkg-config build-essential libgtk-3-dev
-
-      - name: Run cargo check
+      - name: test
         run: cargo test
 
   build_and_release:
@@ -84,30 +41,30 @@ jobs:
         target:
           - x86_64-apple-darwin
           - x86_64-pc-windows-msvc
-#          - x86_64-unknown-linux-gnu
+          - x86_64-unknown-linux-gnu
         include:
-#          - target: x86_64-unknown-linux-gnu
-#            os: ubuntu-20.04
-#            name: image-editor-linux.tar.gz
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: games-linux.tar.gz
           - target: x86_64-apple-darwin
             os: macOS-latest
-            name: image-editor-mac.tar.gz
+            name: games-mac.tar.gz
           - target: x86_64-pc-windows-msvc
             os: windows-latest
-            name: image-editor-windows.zip
+            name: games-windows.zip
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
-
-      - name: Run cargo check --all-targets
-        run: cargo check --all-targets
-
-      - uses: actions-rs/cargo@v1
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          use-cross: true
-          command: build
-          toolchain: stable
-          args: --release --target=${{ matrix.target }}
+          components: clippy, rustfmt
+
+      - name: Install linux deps
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update; sudo apt-get install --no-install-recommends pkg-config build-essential gcc-multilib libudev-dev libgtk-3-dev
+
+      - name: build
+        run: cargo build --release --target ${{ matrix.target }}
 
       - name: Prepare build artifacts [Windows]
         if: matrix.os == 'windows-latest'

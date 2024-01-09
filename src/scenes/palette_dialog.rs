@@ -1,6 +1,5 @@
-use crate::palettes::Palette;
 use crate::SceneUpdateResult::{Nothing, Pop};
-use crate::{Scene, SceneName, SceneResult, SUR};
+use crate::{Scene, SceneName, SceneResult, Settings, SUR};
 
 use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
 use pixels_graphics_lib::prelude::*;
@@ -8,7 +7,9 @@ use pixels_graphics_lib::ui::prelude::TextFilter::Numbers;
 use pixels_graphics_lib::ui::prelude::*;
 
 use std::fs;
+use std::path::PathBuf;
 
+use crate::palettes::*;
 use crate::scenes::file_dialog;
 use std::str::FromStr;
 
@@ -19,7 +20,6 @@ const PAL_PER_ROW: usize = 21;
 const PAL_WIDTH: usize = PAL_SPACED * PAL_PER_ROW;
 const PAL_HEIGHT: usize = PAL_SPACED * 2;
 
-#[derive(Debug)]
 pub struct PaletteDialog {
     result: SUR,
     dos: Button,
@@ -44,11 +44,19 @@ pub struct PaletteDialog {
     alpha: TextField,
     current_color: Color,
     dialog_pos: Coord,
-    file_path: Option<String>,
+    file_path: Option<PathBuf>,
+    prefs: AppPrefs<Settings>,
 }
 
 impl PaletteDialog {
-    pub fn new(colors: Vec<Color>, width: usize, height: usize, style: &DialogStyle) -> Box<Self> {
+    pub fn new(
+        colors: Vec<Color>,
+        width: usize,
+        height: usize,
+        selected: usize,
+        prefs: AppPrefs<Settings>,
+        style: &DialogStyle,
+    ) -> Box<Self> {
         let dialog_pos = style.bounds.top_left();
         let background = dialog_background(width, height, style);
         let button_start_pos = dialog_pos + (4, 4);
@@ -174,24 +182,25 @@ impl PaletteDialog {
             delete,
             add,
             background,
-            selected_color: 0,
+            selected_color: selected,
             colors: colors.into_iter().take(42).collect(),
             red,
             green,
             blue,
             alpha,
             current_color: WHITE,
+            prefs,
         };
         dialog.update_selected_color_display();
         Box::new(dialog)
     }
 
-    fn reset_colors(&mut self, colors: &[Color]) {
+    fn reset_colors(&mut self, colors: &[IciColor]) {
         if colors.is_empty() {
             return;
         }
         self.colors.clear();
-        self.colors.extend_from_slice(colors);
+        self.colors = colors.iter().map(|c| c.to_color()).collect();
         self.selected_color = 0;
         self.update_selected_color_display();
     }
@@ -206,10 +215,8 @@ impl PaletteDialog {
 
     fn save_palette(&mut self) {
         if let Some(path) = &self.file_path {
-            let output = Palette {
-                colors: self.colors.clone(),
-            }
-            .to_file_contents();
+            let output = JascPalette::new(self.colors.iter().map(|c| c.to_ici()).collect())
+                .to_file_contents();
             fs::write(path, output).expect("Writing palette to disk");
         }
     }
@@ -217,8 +224,8 @@ impl PaletteDialog {
     fn load_palette(&mut self) {
         if let Some(path) = &self.file_path {
             let input = fs::read_to_string(path).expect("Reading palette from disk");
-            let palette = Palette::from_file_contents(&input).expect("Decoding palette");
-            self.colors = palette.colors;
+            let palette = JascPalette::from_file_contents(&input).expect("Decoding palette");
+            self.colors = palette.colors.iter().map(|c| c.to_color()).collect();
         }
     }
 }
@@ -327,7 +334,13 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
         self.current_color = Color { r, g, b, a };
     }
 
-    fn on_mouse_click(&mut self, down_at: Coord, mouse: &MouseData, button: MouseButton, _: &[KeyCode]) {
+    fn on_mouse_click(
+        &mut self,
+        down_at: Coord,
+        mouse: &MouseData,
+        button: MouseButton,
+        _: &[KeyCode],
+    ) {
         if button != MouseButton::Left {
             return;
         }
@@ -335,25 +348,28 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
             self.result = Pop(None);
         }
         if self.ok.on_mouse_click(down_at, mouse.xy) {
-            self.result = Pop(Some(SceneResult::Palette(self.colors.clone())));
+            self.result = Pop(Some(SceneResult::Palette(
+                self.colors.clone(),
+                self.selected_color,
+            )));
         }
         if self.gb.on_mouse_click(down_at, mouse.xy) {
-            self.reset_colors(&Palette::builtin_gb().colors);
+            self.reset_colors(&palette_gb().colors);
         }
         if self.dos.on_mouse_click(down_at, mouse.xy) {
-            self.reset_colors(&Palette::builtin_dos().colors);
+            self.reset_colors(&palette_dos().colors);
         }
         if self.vic.on_mouse_click(down_at, mouse.xy) {
-            self.reset_colors(&Palette::builtin_vic().colors);
+            self.reset_colors(&palette_vic().colors);
         }
         if self.pico.on_mouse_click(down_at, mouse.xy) {
-            self.reset_colors(&Palette::builtin_pico().colors);
+            self.reset_colors(&palette_pico().colors);
         }
         if self.zx.on_mouse_click(down_at, mouse.xy) {
-            self.reset_colors(&Palette::builtin_zx().colors);
+            self.reset_colors(&palette_zx().colors);
         }
         if self.def.on_mouse_click(down_at, mouse.xy) {
-            self.reset_colors(&Palette::default().colors);
+            self.reset_colors(&palette_default().colors);
         }
         if self.add.on_mouse_click(down_at, mouse.xy) && self.colors.len() < 42 {
             self.colors.push(self.current_color);
@@ -383,14 +399,30 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
             }
         }
         if self.save.on_mouse_click(down_at, mouse.xy) {
-            if let Some(path) = file_dialog(&self.file_path, &[("Palette", "pal")]).save_file() {
-                self.file_path = Some(path.to_string_lossy().to_string());
+            if let Some(path) = file_dialog(
+                self.file_path
+                    .clone()
+                    .unwrap_or(self.prefs.data.last_used_pal_dir.clone()),
+                &[("Palette", "pal")],
+            )
+            .save_file()
+            {
+                self.file_path = Some(path.clone());
+                self.prefs.data.last_used_pal_dir = path;
                 self.save_palette();
             }
         }
         if self.load.on_mouse_click(down_at, mouse.xy) {
-            if let Some(path) = file_dialog(&self.file_path, &[("Palette", "pal")]).pick_file() {
-                self.file_path = Some(path.to_string_lossy().to_string());
+            if let Some(path) = file_dialog(
+                self.file_path
+                    .clone()
+                    .unwrap_or(self.prefs.data.last_used_pal_dir.clone()),
+                &[("Palette", "pal")],
+            )
+            .pick_file()
+            {
+                self.file_path = Some(path.clone());
+                self.prefs.data.last_used_pal_dir = path;
                 self.load_palette();
             }
         }

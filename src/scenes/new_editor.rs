@@ -1,19 +1,20 @@
-use crate::palettes::Palette;
 use crate::scenes::{file_dialog, BACKGROUND};
 use crate::ui::canvas::{Canvas, Tool};
 use crate::ui::palette::PaletteView;
-use crate::{SceneName, SceneResult, SUR, WIDTH};
+use crate::{DefaultPalette, SceneName, SceneResult, Settings, HEIGHT, SUR, WIDTH};
 
-use log::error;
 use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
 use pixels_graphics_lib::prelude::*;
-use pixels_graphics_lib::scenes::SceneUpdateResult::{Nothing, Pop};
+use pixels_graphics_lib::scenes::SceneUpdateResult::{Nothing, Pop, Push};
 use pixels_graphics_lib::ui::prelude::TextFilter::Decimal;
 use pixels_graphics_lib::ui::prelude::*;
 
+use crate::palettes::palette_default;
 use crate::ui::edit_history::EditHistory;
 use crate::ui::preview::Preview;
 use crate::ui::timeline::Timeline;
+use log::error;
+use pixels_graphics_lib::prelude::TextSize::{Large, Small};
 use std::fs;
 use std::ops::Add;
 use std::path::PathBuf;
@@ -21,7 +22,6 @@ use std::time::{Duration, Instant};
 
 const PER_UNDO: u64 = 200;
 
-#[allow(unused)] //will be soon
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 enum AlertAction {
     Clear,
@@ -34,7 +34,7 @@ const PADDING: isize = 4;
 const BUTTON_Y: isize = NAME_LINE_Y + PADDING;
 const FRAME_CONTROL: Coord = Coord::new(4, 200);
 const FRAME_CONTROL_SPACING: isize = 20;
-const PALETTE_HEIGHT: usize = 64;
+const PALETTE_HEIGHT: usize = 58;
 
 const TOOL_PENCIL: usize = 0;
 const TOOL_LINE: usize = 1;
@@ -46,8 +46,46 @@ const CORRUPT: &str = "???";
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum EditorDetails {
-    Open(String),
+    Open(PathBuf),
     New(u8, u8),
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+struct SaveData {
+    pub path: Option<PathBuf>,
+    pub palette: Option<FilePalette>,
+    pub index: Option<usize>,
+    pub new_file: bool,
+    //hack to avoid opening save dialog when save would be called
+    //for example if the user clicks the palette details
+    pub ignore_next_save: bool,
+}
+
+impl SaveData {
+    pub fn loaded_image(path: PathBuf, is_animated: bool) -> Self {
+        SaveData {
+            path: Some(path),
+            index: if is_animated { None } else { Some(0) },
+            ..SaveData::default()
+        }
+    }
+
+    pub fn new_image() -> Self {
+        SaveData {
+            index: Some(0),
+            ..SaveData::default()
+        }
+    }
+}
+
+impl SaveData {
+    pub fn filters(&self) -> &[(&'static str, &'static str); 1] {
+        if self.index.is_some() {
+            &[("IndexedImage", "ici")]
+        } else {
+            &[("AnimatedIndexedImage", "ica")]
+        }
+    }
 }
 
 pub struct Editor {
@@ -63,11 +101,6 @@ pub struct Editor {
     add_frame: IconButton,
     remove_frame: IconButton,
     copy_frame: IconButton,
-    #[allow(unused)] //will be soon
-    alert: Alert,
-    #[allow(unused)] //will be soon
-    pending_alert_action: Option<AlertAction>,
-    filepath: Option<String>,
     canvas: Canvas,
     palette: PaletteView,
     last_undo: Instant,
@@ -77,6 +110,12 @@ pub struct Editor {
     is_playing: bool,
     next_frame_swap: f64,
     anim_frame_idx: usize,
+    palette_info: Rect,
+    prefs: AppPrefs<Settings>,
+    error: Option<String>,
+    save_data: SaveData,
+    alert: Alert,
+    pending_alert: Option<AlertAction>,
 }
 
 impl Editor {
@@ -84,8 +123,10 @@ impl Editor {
         width: usize,
         height: usize,
         details: EditorDetails,
+        mut prefs: AppPrefs<Settings>,
+        default_palette: DefaultPalette,
         style: &UiStyle,
-    ) -> Box<Editor> {
+    ) -> Box<Self> {
         let save = Button::new((PADDING, BUTTON_Y), "Save", None, &style.button);
         let save_as = Button::new(
             (save.bounds().bottom_right().x + PADDING, BUTTON_Y),
@@ -204,13 +245,15 @@ impl Editor {
             (TOOL_RECT, rect_tool),
             (TOOL_FILL, fill_tool),
         ]);
-        let mut filepath = None;
+        let mut error = None;
+        let mut save_data;
         let frames = match details {
             EditorDetails::Open(path) => {
-                let is_animated = path.contains(".ica");
-                filepath = Some(path.clone());
-                let bytes = fs::read(path).expect("Reading image from file");
-                let (image, pal) = if is_animated {
+                let file = path.to_string_lossy().to_string();
+                let is_animated = file.contains(".ica");
+                save_data = SaveData::loaded_image(path.clone(), is_animated);
+                let bytes = fs::read(path.clone()).expect("Reading image from file");
+                let (mut images, pal) = if is_animated {
                     let (image, pal) = AnimatedIndexedImage::from_file_contents(&bytes)
                         .expect("Reading animated image data");
                     speed.set_content(&image.get_per_frame().to_string());
@@ -221,22 +264,35 @@ impl Editor {
                     (vec![image], pal)
                 };
                 if pal != FilePalette::Colors {
-                    panic!("Currently {pal:?} isn't supported");
+                    if let DefaultPalette::Palette(_, default) = default_palette {
+                        if default.len() == images[0].get_palette().len() {
+                            error = Some(format!("Image has palette {pal:?} and default palette was provided but they have a different number of colors: image {}, palette {}", images[0].get_palette().len(), default.len()));
+                        } else {
+                            for image in &mut images {
+                                if let Err(e) = image.set_palette(&default) {
+                                    error =
+                                        Some(format!("Error when setting default palette: {e}"));
+                                }
+                            }
+                        }
+                    }
                 }
-                image
+                save_data.palette = Some(pal);
+                prefs.data.last_used_dir = path;
+                prefs.save();
+                images
             }
             EditorDetails::New(w, h) => {
-                vec![IndexedImage::new(
-                    w,
-                    h,
-                    Palette::default()
-                        .colors
-                        .iter()
-                        .map(|c| c.to_ici())
-                        .collect(),
-                    vec![0; w as usize * h as usize],
-                )
-                .unwrap()]
+                save_data = SaveData::new_image();
+                let colors = if let DefaultPalette::Palette(_, colors) = default_palette {
+                    colors
+                } else {
+                    palette_default().colors
+                };
+                if prefs.data.use_colors {
+                    save_data.palette = Some(FilePalette::Colors);
+                }
+                vec![IndexedImage::new(w, h, colors, vec![0; w as usize * h as usize]).unwrap()]
             }
         };
 
@@ -250,10 +306,18 @@ impl Editor {
 
         canvas.set_color_index(1);
         canvas.set_image(frames[0].clone());
+        let palette_info = Rect::new_with_size(
+            (
+                edit_palette.bounds().top_left().x,
+                edit_palette.bounds().bottom_right().y + PADDING,
+            ),
+            70,
+            4,
+        );
         let mut palette = PaletteView::new(
             Coord::new(
                 edit_palette.bounds().top_left().x,
-                edit_palette.bounds().bottom_right().y + PADDING,
+                edit_palette.bounds().bottom_right().y + PADDING + 6,
             ),
             (edit_palette.bounds().width(), PALETTE_HEIGHT),
         );
@@ -265,6 +329,10 @@ impl Editor {
         let history = EditHistory::new(frames.clone());
         preview.set_image(history.get_current_image().clone());
         let mut editor = Self {
+            alert,
+            pending_alert: None,
+            save_data,
+            error,
             timeline,
             result: Nothing,
             clear,
@@ -278,10 +346,7 @@ impl Editor {
             add_frame,
             remove_frame,
             copy_frame,
-            alert,
             palette,
-            pending_alert_action: None,
-            filepath,
             canvas,
             preview,
             last_undo: Instant::now(),
@@ -289,55 +354,83 @@ impl Editor {
             is_playing: false,
             next_frame_swap: 0.0,
             anim_frame_idx: 0,
+            prefs,
+            palette_info,
         };
         editor.relayout_canvas(frames.len() > 1);
         Box::new(editor)
     }
 
-    fn open_save_as(&mut self, frame_idx: Option<usize>) {
-        let filters = if frame_idx.is_some() {
-            &[("IndexedImage", "ici")]
+    fn save(&mut self) {
+        if self.save_data.ignore_next_save {
+            self.save_data.ignore_next_save = false;
+            return;
+        }
+        if self.save_data.palette.is_none() {
+            self.result = Push(
+                false,
+                SceneName::SavePaletteData(self.save_data.palette.clone()),
+            );
+            return;
+        }
+        if self.save_data.path.is_none() || self.save_data.new_file {
+            if let Some(path) = file_dialog(
+                self.prefs.data.last_used_dir.clone(),
+                self.save_data.filters(),
+            )
+            .save_file()
+            {
+                self.save_data.path = Some(path.clone());
+                self.prefs.data.last_used_dir = path;
+                self.prefs.save();
+            } else {
+                return;
+            }
+        }
+        self.save_file();
+        if self.history.frame_count() > 1 {
+            self.save_data.index = None;
         } else {
-            &[("AnimatedIndexedImage", "ica")]
-        };
-        if let Some(path) = file_dialog(&self.filepath, filters).save_file() {
-            self.filepath = Some(path.to_string_lossy().to_string());
-            self.save_file(frame_idx);
+            self.save_data.index = Some(0);
         }
     }
 
-    fn save_file(&self, frame_idx: Option<usize>) {
-        if let Some(filepath) = &self.filepath {
-            if let Some(idx) = frame_idx {
-                let bytes = self
-                    .history
-                    .get_image(idx)
-                    .to_file_contents(&FilePalette::Colors)
-                    .expect("Unable to save ici file (converting)");
-                fs::write(filepath, bytes).expect("Unable to save ici file (writing)");
+    fn save_file(&self) {
+        if let Some(filepath) = &self.save_data.path {
+            if let Some(palette) = &self.save_data.palette {
+                if let Some(idx) = self.save_data.index {
+                    let bytes = self
+                        .history
+                        .get_image(idx)
+                        .to_file_contents(palette)
+                        .expect("Unable to save ici file (converting)");
+                    fs::write(filepath, bytes).expect("Unable to save ici file (writing)");
+                } else {
+                    let frames = self.history.get_images();
+                    let pixels = frames
+                        .iter()
+                        .flat_map(|i| i.get_pixels().to_vec())
+                        .collect();
+                    let image = AnimatedIndexedImage::new(
+                        frames[0].width(),
+                        frames[1].height(),
+                        self.speed.content().parse::<f64>().unwrap_or(1.0),
+                        frames.len() as u8,
+                        frames[0].get_palette().to_vec(),
+                        pixels,
+                        PlayType::Loops,
+                    )
+                    .unwrap();
+                    let bytes = image
+                        .to_file_contents(palette)
+                        .expect("Unable to save ica file (converting)");
+                    fs::write(filepath, bytes).expect("Unable to save ica file (writing)");
+                }
             } else {
-                let frames = self.history.get_images();
-                let pixels = frames
-                    .iter()
-                    .flat_map(|i| i.get_pixels().to_vec())
-                    .collect();
-                let image = AnimatedIndexedImage::new(
-                    frames[0].width(),
-                    frames[1].height(),
-                    self.speed.content().parse::<f64>().unwrap_or(1.0),
-                    frames.len() as u8,
-                    frames[0].get_palette().to_vec(),
-                    pixels,
-                    PlayType::Loops,
-                )
-                .unwrap();
-                let bytes = image
-                    .to_file_contents(&FilePalette::Colors)
-                    .expect("Unable to save ica file (converting)");
-                fs::write(filepath, bytes).expect("Unable to save ica file (writing)");
+                error!("Missing save_data.palette")
             }
         } else {
-            error!("save_file called but no filepath set")
+            error!("Missing save_data.path")
         }
     }
 
@@ -390,7 +483,16 @@ impl Scene<SceneResult, SceneName> for Editor {
     fn render(&self, graphics: &mut Graphics, mouse: &MouseData, _: &[KeyCode]) {
         graphics.clear(BACKGROUND);
 
-        let name = if let Some(path) = &self.filepath {
+        if let Some(msg) = &self.error {
+            graphics.draw_text(
+                &format!("{msg}\nPress escape to close"),
+                TextPos::px(coord!(WIDTH / 2, HEIGHT / 2)),
+                (RED, Large, WrappingStrategy::AtCol(20), Positioning::Center),
+            );
+            return;
+        }
+
+        let name = if let Some(path) = &self.save_data.path {
             PathBuf::from(path)
                 .file_name()
                 .map(|s| s.to_string_lossy().to_string())
@@ -411,6 +513,21 @@ impl Scene<SceneResult, SceneName> for Editor {
             (WHITE, TextSize::Normal, WrappingStrategy::Ellipsis(38)),
         );
         graphics.draw_line((0, NAME_LINE_Y), (WIDTH as isize, NAME_LINE_Y), LIGHT_GRAY);
+        let text = if let Some(pal) = &self.save_data.palette {
+            match pal {
+                FilePalette::NoData => String::from("Don't include"),
+                FilePalette::ID(id) => format!("ID: {id}"),
+                FilePalette::Name(name) => format!("\"{name}\""),
+                FilePalette::Colors => String::from("Incl as colors"),
+            }
+        } else {
+            String::from("-")
+        };
+        graphics.draw_text(
+            &text,
+            TextPos::px(self.palette_info.top_left()),
+            (WHITE, Small, WrappingStrategy::Cutoff(14)),
+        );
 
         self.speed.render(graphics, mouse);
         self.add_frame.render(graphics, mouse);
@@ -427,14 +544,28 @@ impl Scene<SceneResult, SceneName> for Editor {
         self.canvas.render(graphics, mouse);
         self.preview.render(graphics, mouse);
         self.timeline.render(graphics, mouse);
+
+        if self.pending_alert.is_some() {
+            self.alert.render(graphics, mouse);
+        }
     }
 
     fn on_key_down(&mut self, key: KeyCode, _: &MouseData, held: &[KeyCode]) {
+        if self.error.is_some() && key == KeyCode::Escape {
+            self.result = Pop(None);
+            return;
+        }
+        if self.pending_alert.is_some() {
+            return;
+        }
         if self.last_undo < Instant::now() {
             if key == KeyCode::KeyZ
-                && !held.contains(&&KeyCode::ShiftLeft)
-                && (held.contains(&&KeyCode::ControlLeft)
-                    || held.contains(&&KeyCode::SuperLeft))
+                && !held.contains(&KeyCode::ShiftLeft)
+                && !held.contains(&KeyCode::ShiftRight)
+                && (held.contains(&KeyCode::ControlLeft)
+                    || held.contains(&KeyCode::SuperLeft)
+                    || held.contains(&KeyCode::ControlRight)
+                    || held.contains(&KeyCode::SuperRight))
             {
                 self.history.undo().unwrap();
                 self.last_undo = Instant::now().add(Duration::from_millis(PER_UNDO));
@@ -446,10 +577,13 @@ impl Scene<SceneResult, SceneName> for Editor {
                 self.preview
                     .set_image(self.history.get_current_image().clone());
             }
-            if ((key == KeyCode::KeyZ && held.contains(&&KeyCode::ShiftLeft))
+            if ((key == KeyCode::KeyZ
+                && (held.contains(&KeyCode::ShiftLeft) || held.contains(&KeyCode::ShiftRight)))
                 || key == KeyCode::KeyY)
-                && (held.contains(&&KeyCode::ControlLeft)
-                    || held.contains(&&KeyCode::SuperLeft))
+                && (held.contains(&KeyCode::ControlLeft)
+                    || held.contains(&KeyCode::SuperLeft)
+                    || held.contains(&KeyCode::ControlRight)
+                    || held.contains(&KeyCode::SuperRight))
             {
                 self.history.redo().unwrap();
                 self.last_undo = Instant::now().add(Duration::from_millis(PER_UNDO));
@@ -468,25 +602,36 @@ impl Scene<SceneResult, SceneName> for Editor {
         self.speed.on_key_press(key, held);
     }
 
-    fn on_mouse_down(&mut self, mouse: &MouseData, button: MouseButton, _: &[KeyCode]) {
+    fn on_mouse_click(
+        &mut self,
+        down_at: Coord,
+        mouse: &MouseData,
+        button: MouseButton,
+        keys: &[KeyCode],
+    ) {
         if button != MouseButton::Left {
             return;
         }
-        if self.canvas.on_mouse_down(mouse.xy, &mut self.history) {
-            self.canvas
-                .set_image(self.history.get_current_image().clone());
-            self.preview.set_image(self.canvas.get_image().clone());
-            self.timeline
-                .update_frame(self.history.get_current_image().clone());
-            if self.history.is_first_event_light_pixel() {
-                let color = self.preview.select_dark_background();
-                self.timeline.set_background(color)
-            }
+        if self.error.is_some() {
+            return;
         }
-    }
-
-    fn on_mouse_click(&mut self, down_at: Coord, mouse: &MouseData, button: MouseButton, keys: &[KeyCode]) {
-        if button != MouseButton::Left {
+        if let Some(pending) = self.pending_alert {
+            if let Some(result) = self.alert.on_mouse_click(down_at, mouse.xy) {
+                if result == AlertResult::Positive {
+                    match pending {
+                        AlertAction::Clear => {
+                            self.history.add_clear().unwrap();
+                            self.canvas
+                                .set_image(self.history.get_current_image().clone());
+                            self.preview.set_image(self.canvas.get_image().clone());
+                            self.timeline
+                                .update_frame(self.history.get_current_image().clone());
+                        }
+                        AlertAction::Close => self.result = Pop(None),
+                    }
+                }
+                self.pending_alert = None;
+            }
             return;
         }
         if let Some(tool_id) = self.tools.on_mouse_click(down_at, mouse.xy) {
@@ -525,6 +670,13 @@ impl Scene<SceneResult, SceneName> for Editor {
                 self.edit_palette.set_state(ElementState::Disabled);
             }
         }
+        if self.palette_info.contains(mouse.xy) {
+            self.save_data.ignore_next_save = true;
+            self.result = Push(
+                false,
+                SceneName::SavePaletteData(self.save_data.palette.clone()),
+            )
+        }
         if self.add_frame.on_mouse_click(down_at, mouse.xy) {
             self.history.add_blank_frame().unwrap();
             self.timeline
@@ -532,6 +684,7 @@ impl Scene<SceneResult, SceneName> for Editor {
             if self.history.frame_count() == 2 {
                 self.relayout_canvas(true);
             }
+            self.save_data.index = None;
         }
         if self.remove_frame.on_mouse_click(down_at, mouse.xy) {
             self.history.remove_frame().unwrap();
@@ -539,6 +692,7 @@ impl Scene<SceneResult, SceneName> for Editor {
                 .set_frames(self.history.get_images(), self.history.active_frame());
             if self.history.frame_count() == 1 {
                 self.relayout_canvas(false);
+                self.save_data.index = Some(0);
             }
         }
         if self.copy_frame.on_mouse_click(down_at, mouse.xy) {
@@ -548,34 +702,45 @@ impl Scene<SceneResult, SceneName> for Editor {
             if self.history.frame_count() == 2 {
                 self.relayout_canvas(true);
             }
+            self.save_data.index = None;
         }
         if self.close.on_mouse_click(down_at, mouse.xy) {
-            self.result = Pop(None);
-        }
-        if self.clear.on_mouse_click(down_at, mouse.xy) {
-            self.history.add_clear().unwrap();
-        }
-        if self.save.on_mouse_click(down_at, mouse.xy) {
-            let idx = if keys.contains(&&KeyCode::ShiftLeft) || self.history.frame_count() == 1
-            {
-                Some(self.history.active_frame())
+            if self.history.is_empty() {
+                self.result = Pop(None);
             } else {
-                None
-            };
-            if self.filepath.is_some() {
-                self.save_file(idx);
-            } else {
-                self.open_save_as(idx);
+                self.pending_alert = Some(AlertAction::Close);
             }
         }
-        if self.save_as.on_mouse_click(down_at, mouse.xy) {
-            let idx = if keys.contains(&&KeyCode::ShiftLeft) || self.history.frame_count() == 1
-            {
-                Some(self.history.active_frame())
+        if self.clear.on_mouse_click(down_at, mouse.xy) {
+            if self.history.is_frame_empty() {
+                self.history.add_clear().unwrap();
             } else {
-                None
-            };
-            self.open_save_as(idx);
+                self.pending_alert = Some(AlertAction::Clear);
+            }
+        }
+        if self.save.on_mouse_click(down_at, mouse.xy) {
+            self.save_data.new_file = false;
+            if keys.contains(&KeyCode::ShiftLeft)
+                || keys.contains(&KeyCode::ShiftRight)
+                || self.history.frame_count() == 1
+            {
+                self.save_data.index = Some(self.history.active_frame())
+            } else {
+                self.save_data.index = None;
+            }
+            self.save();
+        }
+        if self.save_as.on_mouse_click(down_at, mouse.xy) {
+            self.save_data.new_file = true;
+            if keys.contains(&KeyCode::ShiftLeft)
+                || keys.contains(&KeyCode::ShiftRight)
+                || self.history.frame_count() == 1
+            {
+                self.save_data.index = Some(self.history.active_frame())
+            } else {
+                self.save_data.index = None;
+            }
+            self.save();
         }
         self.speed.on_mouse_click(down_at, mouse.xy);
         if self.edit_palette.on_mouse_click(down_at, mouse.xy) {
@@ -586,7 +751,10 @@ impl Scene<SceneResult, SceneName> for Editor {
                 .iter()
                 .map(|c| c.to_color())
                 .collect();
-            self.result = SceneUpdateResult::Push(false, SceneName::Palette(colors));
+            self.result = SceneUpdateResult::Push(
+                false,
+                SceneName::Palette(colors, self.palette.get_selected_idx() as usize),
+            );
         }
         if self.palette.on_mouse_click(mouse.xy) {
             self.canvas.set_color_index(self.palette.get_selected_idx());
@@ -613,7 +781,7 @@ impl Scene<SceneResult, SceneName> for Editor {
     fn update(
         &mut self,
         timing: &Timing,
-        _: &MouseData,
+        mouse: &MouseData,
         _: &[KeyCode],
     ) -> SceneUpdateResult<SceneResult, SceneName> {
         self.speed.update(timing);
@@ -645,26 +813,48 @@ impl Scene<SceneResult, SceneName> for Editor {
                 self.add_frame.set_state(ElementState::Normal);
                 self.copy_frame.set_state(ElementState::Normal);
             }
+
+            if mouse.is_down(MouseButton::Left).is_some()
+                && self.canvas.on_mouse_down(mouse.xy, &mut self.history)
+            {
+                self.canvas
+                    .set_image(self.history.get_current_image().clone());
+                self.preview.set_image(self.canvas.get_image().clone());
+                self.timeline
+                    .update_frame(self.history.get_current_image().clone());
+                if self.history.is_first_event_light_pixel() {
+                    let color = self.preview.select_dark_background();
+                    self.timeline.set_background(color)
+                }
+            }
         }
 
         self.result.clone()
     }
 
     fn resuming(&mut self, result: Option<SceneResult>) {
-        if let Some(SceneResult::Palette(colors)) = result {
-            let colors: Vec<IciColor> = colors.iter().map(|c| c.to_ici()).collect();
-            self.palette.set_palette(&colors);
-            self.palette.set_color_index(0);
-            if let Err(e) = self.history.add_palette_change(&colors) {
-                panic!("Failed to update palette: {e} (please raise issue on github)");
+        if let Some(result) = result {
+            match result {
+                SceneResult::SavePaletteData(fp) => {
+                    self.save_data.palette = Some(fp);
+                    self.save();
+                }
+                SceneResult::Palette(colors, selected) => {
+                    let colors: Vec<IciColor> = colors.iter().map(|c| c.to_ici()).collect();
+                    self.palette.set_palette(&colors);
+                    self.palette.set_color_index(selected as u8);
+                    if let Err(e) = self.history.add_palette_change(&colors) {
+                        panic!("Failed to update palette: (please raise issue on github) {e:?}");
+                    }
+                    self.timeline
+                        .set_frames(self.history.get_images(), self.history.active_frame());
+                    self.preview
+                        .set_image(self.history.get_current_image().clone());
+                    self.canvas
+                        .set_image(self.history.get_current_image().clone());
+                    self.canvas.set_color_index(selected as u8);
+                }
             }
-            self.timeline
-                .set_frames(self.history.get_images(), self.history.active_frame());
-            self.preview
-                .set_image(self.history.get_current_image().clone());
-            self.canvas
-                .set_image(self.history.get_current_image().clone());
-            self.canvas.set_color_index(0);
         }
         self.result = Nothing;
     }
