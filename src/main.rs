@@ -34,7 +34,7 @@ fn settings() -> AppPrefs<Settings> {
             .unwrap_or(PathBuf::from("/")),
         last_used_pal_dir: UserDirs::new()
             .and_then(|ud| ud.document_dir().map(|p| p.to_path_buf()))
-            .unwrap_or(PathBuf::from("/"))
+            .unwrap_or(PathBuf::from("/")),
     }).expect("Unable to create prefs file")
 }
 
@@ -51,10 +51,10 @@ fn main() -> Result<()> {
     let switcher: SceneSwitcher<SceneResult, SceneName> = |style, list, name| {
         let style = style;
         match name {
-            SceneName::Editor(details) => list.push(Editor::new(WIDTH, HEIGHT, details,settings(), style)),
+            SceneName::Editor(details) => list.push(Editor::new(WIDTH, HEIGHT, details, settings(), style)),
             SceneName::NewImage => list.push(NewImageDialog::new(WIDTH, HEIGHT, style)),
-            SceneName::Palette(colors) => {
-                list.push(PaletteDialog::new(colors, WIDTH, HEIGHT,  settings(), &style.dialog))
+            SceneName::Palette(colors, selected) => {
+                list.push(PaletteDialog::new(colors, WIDTH, HEIGHT, selected, settings(), &style.dialog))
             }
             SceneName::SavePaletteData => list.push(SavePaletteDataDialog::new(
                 WIDTH,
@@ -84,7 +84,7 @@ fn main() -> Result<()> {
 enum SceneName {
     Editor(EditorDetails),
     NewImage,
-    Palette(Vec<Color>),
+    Palette(Vec<Color>, usize),
     #[allow(unused)] //will be one day
     SavePaletteData,
 }
@@ -93,5 +93,5 @@ enum SceneName {
 enum SceneResult {
     #[allow(unused)] //will be one day
     SavePaletteData(FilePalette),
-    Palette(Vec<Color>),
+    Palette(Vec<Color>, usize),
 }

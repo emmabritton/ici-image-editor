@@ -49,7 +49,7 @@ pub struct PaletteDialog {
 }
 
 impl PaletteDialog {
-    pub fn new(colors: Vec<Color>, width: usize, height: usize,prefs: AppPrefs<Settings>, style: &DialogStyle) -> Box<Self> {
+    pub fn new(colors: Vec<Color>, width: usize, height: usize, selected: usize, prefs: AppPrefs<Settings>, style: &DialogStyle) -> Box<Self> {
         let dialog_pos = style.bounds.top_left();
         let background = dialog_background(width, height, style);
         let button_start_pos = dialog_pos + (4, 4);
@@ -175,7 +175,7 @@ impl PaletteDialog {
             delete,
             add,
             background,
-            selected_color: 0,
+            selected_color: selected,
             colors: colors.into_iter().take(42).collect(),
             red,
             green,
@@ -341,7 +341,7 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
             self.result = Pop(None);
         }
         if self.ok.on_mouse_click(down_at, mouse.xy) {
-            self.result = Pop(Some(SceneResult::Palette(self.colors.clone())));
+            self.result = Pop(Some(SceneResult::Palette(self.colors.clone(), self.selected_color)));
         }
         if self.gb.on_mouse_click(down_at, mouse.xy) {
             self.reset_colors(&palette_gb().colors);

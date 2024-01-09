@@ -592,7 +592,7 @@ impl Scene<SceneResult, SceneName> for Editor {
                 .iter()
                 .map(|c| c.to_color())
                 .collect();
-            self.result = SceneUpdateResult::Push(false, SceneName::Palette(colors));
+            self.result = SceneUpdateResult::Push(false, SceneName::Palette(colors, self.palette.get_selected_idx() as usize));
         }
         if self.palette.on_mouse_click(mouse.xy) {
             self.canvas.set_color_index(self.palette.get_selected_idx());
@@ -657,10 +657,10 @@ impl Scene<SceneResult, SceneName> for Editor {
     }
 
     fn resuming(&mut self, result: Option<SceneResult>) {
-        if let Some(SceneResult::Palette(colors)) = result {
+        if let Some(SceneResult::Palette(colors, selected)) = result {
             let colors: Vec<IciColor> = colors.iter().map(|c| c.to_ici()).collect();
             self.palette.set_palette(&colors);
-            self.palette.set_color_index(0);
+            self.palette.set_color_index(selected as u8);
             if let Err(e) = self.history.add_palette_change(&colors) {
                 panic!("Failed to update palette: {e} (please raise issue on github)");
             }
@@ -670,7 +670,7 @@ impl Scene<SceneResult, SceneName> for Editor {
                 .set_image(self.history.get_current_image().clone());
             self.canvas
                 .set_image(self.history.get_current_image().clone());
-            self.canvas.set_color_index(0);
+            self.canvas.set_color_index(selected as u8);
         }
         self.result = Nothing;
     }
