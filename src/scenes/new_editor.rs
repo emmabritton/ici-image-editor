@@ -436,8 +436,8 @@ impl Scene<SceneResult, SceneName> for Editor {
     fn on_key_down(&mut self, key: KeyCode, _: &MouseData, held: &[KeyCode]) {
         if self.last_undo < Instant::now() {
             if key == KeyCode::KeyZ
-                && !held.contains(&&KeyCode::ShiftLeft)
-                && (held.contains(&&KeyCode::ControlLeft) || held.contains(&&KeyCode::SuperLeft))
+                && !held.contains(&&KeyCode::ShiftLeft) && !held.contains(&&KeyCode::ShiftRight)
+                && (held.contains(&&KeyCode::ControlLeft) || held.contains(&&KeyCode::SuperLeft)||held.contains(&&KeyCode::ControlRight) || held.contains(&&KeyCode::SuperRight))
             {
                 self.history.undo().unwrap();
                 self.last_undo = Instant::now().add(Duration::from_millis(PER_UNDO));
@@ -449,9 +449,9 @@ impl Scene<SceneResult, SceneName> for Editor {
                 self.preview
                     .set_image(self.history.get_current_image().clone());
             }
-            if ((key == KeyCode::KeyZ && held.contains(&&KeyCode::ShiftLeft))
+            if ((key == KeyCode::KeyZ && (held.contains(&&KeyCode::ShiftLeft)||held.contains(&&KeyCode::ShiftRight)))
                 || key == KeyCode::KeyY)
-                && (held.contains(&&KeyCode::ControlLeft) || held.contains(&&KeyCode::SuperLeft))
+                && (held.contains(&&KeyCode::ControlLeft) || held.contains(&&KeyCode::SuperLeft)||held.contains(&&KeyCode::ControlRight) || held.contains(&&KeyCode::SuperRight))
             {
                 self.history.redo().unwrap();
                 self.last_undo = Instant::now().add(Duration::from_millis(PER_UNDO));
@@ -564,7 +564,7 @@ impl Scene<SceneResult, SceneName> for Editor {
             self.history.add_clear().unwrap();
         }
         if self.save.on_mouse_click(down_at, mouse.xy) {
-            let idx = if keys.contains(&&KeyCode::ShiftLeft) || self.history.frame_count() == 1 {
+            let idx = if keys.contains(&KeyCode::ShiftLeft)|| keys.contains(&KeyCode::ShiftRight) || self.history.frame_count() == 1 {
                 Some(self.history.active_frame())
             } else {
                 None
@@ -576,7 +576,7 @@ impl Scene<SceneResult, SceneName> for Editor {
             }
         }
         if self.save_as.on_mouse_click(down_at, mouse.xy) {
-            let idx = if keys.contains(&&KeyCode::ShiftLeft) || self.history.frame_count() == 1 {
+            let idx = if keys.contains(&KeyCode::ShiftLeft)|| keys.contains(&KeyCode::ShiftRight) || self.history.frame_count() == 1 {
                 Some(self.history.active_frame())
             } else {
                 None
@@ -662,7 +662,7 @@ impl Scene<SceneResult, SceneName> for Editor {
             self.palette.set_palette(&colors);
             self.palette.set_color_index(selected as u8);
             if let Err(e) = self.history.add_palette_change(&colors) {
-                panic!("Failed to update palette: {e} (please raise issue on github)");
+                panic!("Failed to update palette: (please raise issue on github) {e:?}");
             }
             self.timeline
                 .set_frames(self.history.get_images(), self.history.active_frame());
