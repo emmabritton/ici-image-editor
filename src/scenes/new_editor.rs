@@ -13,12 +13,12 @@ use crate::palettes::palette_default;
 use crate::ui::edit_history::EditHistory;
 use crate::ui::preview::Preview;
 use crate::ui::timeline::Timeline;
+use log::error;
 use pixels_graphics_lib::prelude::TextSize::{Large, Small};
 use std::fs;
 use std::ops::Add;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
-use log::error;
 
 const PER_UNDO: u64 = 200;
 
@@ -58,7 +58,7 @@ struct SaveData {
     pub new_file: bool,
     //hack to avoid opening save dialog when save would be called
     //for example if the user clicks the palette details
-    pub ignore_next_save: bool
+    pub ignore_next_save: bool,
 }
 
 impl SaveData {
@@ -378,7 +378,7 @@ impl Editor {
                 self.prefs.data.last_used_dir.clone(),
                 self.save_data.filters(),
             )
-                .save_file()
+            .save_file()
             {
                 self.save_data.path = Some(path.clone());
                 self.prefs.data.last_used_dir = path;
@@ -399,32 +399,32 @@ impl Editor {
         if let Some(filepath) = &self.save_data.path {
             if let Some(palette) = &self.save_data.palette {
                 if let Some(idx) = self.save_data.index {
-                     let bytes = self
-                         .history
-                         .get_image(idx)
-                         .to_file_contents(palette)
-                         .expect("Unable to save ici file (converting)");
-                     fs::write(filepath, bytes).expect("Unable to save ici file (writing)");
+                    let bytes = self
+                        .history
+                        .get_image(idx)
+                        .to_file_contents(palette)
+                        .expect("Unable to save ici file (converting)");
+                    fs::write(filepath, bytes).expect("Unable to save ici file (writing)");
                 } else {
                     let frames = self.history.get_images();
-                            let pixels = frames
-                                .iter()
-                                .flat_map(|i| i.get_pixels().to_vec())
-                                .collect();
-                            let image = AnimatedIndexedImage::new(
-                                frames[0].width(),
-                                frames[1].height(),
-                                self.speed.content().parse::<f64>().unwrap_or(1.0),
-                                frames.len() as u8,
-                                frames[0].get_palette().to_vec(),
-                                pixels,
-                                PlayType::Loops,
-                            )
-                                .unwrap();
-                            let bytes = image
-                                .to_file_contents(palette)
-                                .expect("Unable to save ica file (converting)");
-                            fs::write(filepath, bytes).expect("Unable to save ica file (writing)");
+                    let pixels = frames
+                        .iter()
+                        .flat_map(|i| i.get_pixels().to_vec())
+                        .collect();
+                    let image = AnimatedIndexedImage::new(
+                        frames[0].width(),
+                        frames[1].height(),
+                        self.speed.content().parse::<f64>().unwrap_or(1.0),
+                        frames.len() as u8,
+                        frames[0].get_palette().to_vec(),
+                        pixels,
+                        PlayType::Loops,
+                    )
+                    .unwrap();
+                    let bytes = image
+                        .to_file_contents(palette)
+                        .expect("Unable to save ica file (converting)");
+                    fs::write(filepath, bytes).expect("Unable to save ica file (writing)");
                 }
             } else {
                 error!("Missing save_data.palette")
@@ -563,9 +563,9 @@ impl Scene<SceneResult, SceneName> for Editor {
                 && !held.contains(&KeyCode::ShiftLeft)
                 && !held.contains(&KeyCode::ShiftRight)
                 && (held.contains(&KeyCode::ControlLeft)
-                || held.contains(&KeyCode::SuperLeft)
-                || held.contains(&KeyCode::ControlRight)
-                || held.contains(&KeyCode::SuperRight))
+                    || held.contains(&KeyCode::SuperLeft)
+                    || held.contains(&KeyCode::ControlRight)
+                    || held.contains(&KeyCode::SuperRight))
             {
                 self.history.undo().unwrap();
                 self.last_undo = Instant::now().add(Duration::from_millis(PER_UNDO));
@@ -581,9 +581,9 @@ impl Scene<SceneResult, SceneName> for Editor {
                 && (held.contains(&KeyCode::ShiftLeft) || held.contains(&KeyCode::ShiftRight)))
                 || key == KeyCode::KeyY)
                 && (held.contains(&KeyCode::ControlLeft)
-                || held.contains(&KeyCode::SuperLeft)
-                || held.contains(&KeyCode::ControlRight)
-                || held.contains(&KeyCode::SuperRight))
+                    || held.contains(&KeyCode::SuperLeft)
+                    || held.contains(&KeyCode::ControlRight)
+                    || held.contains(&KeyCode::SuperRight))
             {
                 self.history.redo().unwrap();
                 self.last_undo = Instant::now().add(Duration::from_millis(PER_UNDO));
@@ -627,7 +627,7 @@ impl Scene<SceneResult, SceneName> for Editor {
                             self.timeline
                                 .update_frame(self.history.get_current_image().clone());
                         }
-                        AlertAction::Close => self.result = Pop(None)
+                        AlertAction::Close => self.result = Pop(None),
                     }
                 }
                 self.pending_alert = None;

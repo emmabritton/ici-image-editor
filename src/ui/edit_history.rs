@@ -81,7 +81,10 @@ impl EditHistory {
     }
 
     pub fn is_frame_empty(&self) -> bool {
-        self.edited_images[self.active_frame].get_pixels().iter().all(|&n| n == 0)
+        self.edited_images[self.active_frame]
+            .get_pixels()
+            .iter()
+            .all(|&n| n == 0)
     }
 
     pub fn get_images(&self) -> Vec<IndexedImage> {

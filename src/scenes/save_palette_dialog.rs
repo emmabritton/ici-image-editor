@@ -1,11 +1,11 @@
-use log::warn;
 use crate::SceneResult::SavePaletteData;
 use crate::{SceneName, SceneResult, Settings, SUR};
+use log::warn;
 use pixels_graphics_lib::buffer_graphics_lib::prelude::Positioning::CenterTop;
 use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
 use pixels_graphics_lib::prelude::SceneUpdateResult::*;
-use pixels_graphics_lib::prelude::*;
 use pixels_graphics_lib::prelude::TextSize::Small;
+use pixels_graphics_lib::prelude::*;
 use pixels_graphics_lib::ui::prelude::*;
 
 const WARN_ID: &[&str] = &["ID must be between", "0 and 65535"];
@@ -28,7 +28,7 @@ pub struct SavePaletteDataDialog {
     title: Text,
     show_alert: bool,
     indicator: Option<Coord>,
-    check: IndexedImage
+    check: IndexedImage,
 }
 
 impl SavePaletteDataDialog {
@@ -91,8 +91,12 @@ impl SavePaletteDataDialog {
             button_width,
             &style.button,
         );
-        let default_checkbox = Rect::new_with_size(dialog_pos + (16, 132), 8,8);
-        let default_text = Text::new("Use by default", TextPos::px(dialog_pos + (27, 134) ), (WHITE, Small));
+        let default_checkbox = Rect::new_with_size(dialog_pos + (16, 132), 8, 8);
+        let default_text = Text::new(
+            "Use by default",
+            TextPos::px(dialog_pos + (27, 134)),
+            (WHITE, Small),
+        );
         let cancel = Button::new(
             dialog_pos + (55, 146),
             "Cancel",
@@ -100,7 +104,10 @@ impl SavePaletteDataDialog {
             &style.button,
         );
         let mut indicator = None;
-        let check = IndexedImage::from_file_contents(include_bytes!("../../assets/icons/check.ici")).unwrap().0;
+        let check =
+            IndexedImage::from_file_contents(include_bytes!("../../assets/icons/check.ici"))
+                .unwrap()
+                .0;
         match pal {
             None => {}
             Some(pal) => match pal {
@@ -150,7 +157,7 @@ impl SavePaletteDataDialog {
             show_alert: false,
             check,
             settings,
-            default_text
+            default_text,
         })
     }
 }
@@ -176,7 +183,7 @@ impl Scene<SceneResult, SceneName> for SavePaletteDataDialog {
         self.default_text.render(graphics);
         graphics.draw_rect(self.default_checkbox.clone(), fill(WHITE));
         if self.settings.data.use_colors {
-            graphics.draw_indexed_image(self.default_checkbox.top_left() + (1,1), &self.check);
+            graphics.draw_indexed_image(self.default_checkbox.top_left() + (1, 1), &self.check);
         }
 
         if self.show_alert {
@@ -235,7 +242,9 @@ impl Scene<SceneResult, SceneName> for SavePaletteDataDialog {
                 self.alert.change_text(WARN_NAME);
                 self.show_alert = true;
             } else {
-                self.result = Pop(Some(SavePaletteData(FilePalette::Name(self.name.content().to_string()))));
+                self.result = Pop(Some(SavePaletteData(FilePalette::Name(
+                    self.name.content().to_string(),
+                ))));
             }
         }
         if self.save_colors.on_mouse_click(down_at, mouse.xy) {
