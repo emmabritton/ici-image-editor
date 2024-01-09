@@ -8,12 +8,12 @@ use crate::scenes::new_image_dialog::NewImageDialog;
 use crate::scenes::palette_dialog::PaletteDialog;
 use crate::scenes::save_palette_dialog::SavePaletteDataDialog;
 use color_eyre::Result;
+use directories::UserDirs;
 use log::LevelFilter;
 use pixels_graphics_lib::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::path::PathBuf;
-use directories::UserDirs;
-use serde::{Deserialize, Serialize};
 
 #[allow(clippy::upper_case_acronyms)]
 type SUR = SceneUpdateResult<SceneResult, SceneName>;
@@ -35,7 +35,8 @@ fn settings() -> AppPrefs<Settings> {
         last_used_pal_dir: UserDirs::new()
             .and_then(|ud| ud.document_dir().map(|p| p.to_path_buf()))
             .unwrap_or(PathBuf::from("/")),
-    }).expect("Unable to create prefs file")
+    })
+    .expect("Unable to create prefs file")
 }
 
 fn main() -> Result<()> {
@@ -49,13 +50,19 @@ fn main() -> Result<()> {
     color_eyre::install()?;
 
     let switcher: SceneSwitcher<SceneResult, SceneName> = |style, list, name| {
-        let style = style;
         match name {
-            SceneName::Editor(details) => list.push(Editor::new(WIDTH, HEIGHT, details, settings(), style)),
-            SceneName::NewImage => list.push(NewImageDialog::new(WIDTH, HEIGHT, style)),
-            SceneName::Palette(colors, selected) => {
-                list.push(PaletteDialog::new(colors, WIDTH, HEIGHT, selected, settings(), &style.dialog))
+            SceneName::Editor(details) => {
+                list.push(Editor::new(WIDTH, HEIGHT, details, settings(), style))
             }
+            SceneName::NewImage => list.push(NewImageDialog::new(WIDTH, HEIGHT, style)),
+            SceneName::Palette(colors, selected) => list.push(PaletteDialog::new(
+                colors,
+                WIDTH,
+                HEIGHT,
+                selected,
+                settings(),
+                &style.dialog,
+            )),
             SceneName::SavePaletteData => list.push(SavePaletteDataDialog::new(
                 WIDTH,
                 HEIGHT,

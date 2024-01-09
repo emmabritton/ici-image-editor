@@ -240,7 +240,9 @@ impl Scene<SceneResult, SceneName> for NewImageDialog {
             self.width_field.unfocus();
             self.height_field.focus();
         } else if self.height_field.is_focused() {
-            if key == KeyCode::Tab && (held.contains(&KeyCode::ShiftLeft)||held.contains(&KeyCode::ShiftRight)) {
+            if key == KeyCode::Tab
+                && (held.contains(&KeyCode::ShiftLeft) || held.contains(&KeyCode::ShiftRight))
+            {
                 self.height_field.unfocus();
                 self.width_field.focus();
             } else if key == KeyCode::Enter {

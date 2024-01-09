@@ -77,7 +77,7 @@ pub struct Editor {
     is_playing: bool,
     next_frame_swap: f64,
     anim_frame_idx: usize,
-    prefs: AppPrefs<Settings>
+    prefs: AppPrefs<Settings>,
 }
 
 impl Editor {
@@ -237,7 +237,7 @@ impl Editor {
                     palette_default().colors,
                     vec![0; w as usize * h as usize],
                 )
-                .unwrap()]
+                    .unwrap()]
             }
         };
 
@@ -290,7 +290,7 @@ impl Editor {
             is_playing: false,
             next_frame_swap: 0.0,
             anim_frame_idx: 0,
-            prefs
+            prefs,
         };
         editor.relayout_canvas(frames.len() > 1);
         Box::new(editor)
@@ -302,7 +302,8 @@ impl Editor {
         } else {
             &[("AnimatedIndexedImage", "ica")]
         };
-        if let Some(path) = file_dialog(self.prefs.data.last_used_dir.clone(), filters).save_file() {
+        if let Some(path) = file_dialog(self.prefs.data.last_used_dir.clone(), filters).save_file()
+        {
             self.filepath = Some(path.to_string_lossy().to_string());
             self.prefs.data.last_used_dir = path;
             self.prefs.save();
@@ -334,7 +335,7 @@ impl Editor {
                     pixels,
                     PlayType::Loops,
                 )
-                .unwrap();
+                    .unwrap();
                 let bytes = image
                     .to_file_contents(&FilePalette::Colors)
                     .expect("Unable to save ica file (converting)");
@@ -436,8 +437,12 @@ impl Scene<SceneResult, SceneName> for Editor {
     fn on_key_down(&mut self, key: KeyCode, _: &MouseData, held: &[KeyCode]) {
         if self.last_undo < Instant::now() {
             if key == KeyCode::KeyZ
-                && !held.contains(&&KeyCode::ShiftLeft) && !held.contains(&&KeyCode::ShiftRight)
-                && (held.contains(&&KeyCode::ControlLeft) || held.contains(&&KeyCode::SuperLeft)||held.contains(&&KeyCode::ControlRight) || held.contains(&&KeyCode::SuperRight))
+                && !held.contains(&KeyCode::ShiftLeft)
+                && !held.contains(&KeyCode::ShiftRight)
+                && (held.contains(&KeyCode::ControlLeft)
+                || held.contains(&KeyCode::SuperLeft)
+                || held.contains(&KeyCode::ControlRight)
+                || held.contains(&KeyCode::SuperRight))
             {
                 self.history.undo().unwrap();
                 self.last_undo = Instant::now().add(Duration::from_millis(PER_UNDO));
@@ -449,9 +454,13 @@ impl Scene<SceneResult, SceneName> for Editor {
                 self.preview
                     .set_image(self.history.get_current_image().clone());
             }
-            if ((key == KeyCode::KeyZ && (held.contains(&&KeyCode::ShiftLeft)||held.contains(&&KeyCode::ShiftRight)))
+            if ((key == KeyCode::KeyZ
+                && (held.contains(&KeyCode::ShiftLeft) || held.contains(&KeyCode::ShiftRight)))
                 || key == KeyCode::KeyY)
-                && (held.contains(&&KeyCode::ControlLeft) || held.contains(&&KeyCode::SuperLeft)||held.contains(&&KeyCode::ControlRight) || held.contains(&&KeyCode::SuperRight))
+                && (held.contains(&KeyCode::ControlLeft)
+                || held.contains(&KeyCode::SuperLeft)
+                || held.contains(&KeyCode::ControlRight)
+                || held.contains(&KeyCode::SuperRight))
             {
                 self.history.redo().unwrap();
                 self.last_undo = Instant::now().add(Duration::from_millis(PER_UNDO));
@@ -468,23 +477,6 @@ impl Scene<SceneResult, SceneName> for Editor {
 
     fn on_key_up(&mut self, key: KeyCode, _: &MouseData, held: &[KeyCode]) {
         self.speed.on_key_press(key, held);
-    }
-
-    fn on_mouse_down(&mut self, mouse: &MouseData, button: MouseButton, _: &[KeyCode]) {
-        if button != MouseButton::Left {
-            return;
-        }
-        if self.canvas.on_mouse_down(mouse.xy, &mut self.history) {
-            self.canvas
-                .set_image(self.history.get_current_image().clone());
-            self.preview.set_image(self.canvas.get_image().clone());
-            self.timeline
-                .update_frame(self.history.get_current_image().clone());
-            if self.history.is_first_event_light_pixel() {
-                let color = self.preview.select_dark_background();
-                self.timeline.set_background(color)
-            }
-        }
     }
 
     fn on_mouse_click(
@@ -564,7 +556,10 @@ impl Scene<SceneResult, SceneName> for Editor {
             self.history.add_clear().unwrap();
         }
         if self.save.on_mouse_click(down_at, mouse.xy) {
-            let idx = if keys.contains(&KeyCode::ShiftLeft)|| keys.contains(&KeyCode::ShiftRight) || self.history.frame_count() == 1 {
+            let idx = if keys.contains(&KeyCode::ShiftLeft)
+                || keys.contains(&KeyCode::ShiftRight)
+                || self.history.frame_count() == 1
+            {
                 Some(self.history.active_frame())
             } else {
                 None
@@ -576,7 +571,10 @@ impl Scene<SceneResult, SceneName> for Editor {
             }
         }
         if self.save_as.on_mouse_click(down_at, mouse.xy) {
-            let idx = if keys.contains(&KeyCode::ShiftLeft)|| keys.contains(&KeyCode::ShiftRight) || self.history.frame_count() == 1 {
+            let idx = if keys.contains(&KeyCode::ShiftLeft)
+                || keys.contains(&KeyCode::ShiftRight)
+                || self.history.frame_count() == 1
+            {
                 Some(self.history.active_frame())
             } else {
                 None
@@ -592,7 +590,10 @@ impl Scene<SceneResult, SceneName> for Editor {
                 .iter()
                 .map(|c| c.to_color())
                 .collect();
-            self.result = SceneUpdateResult::Push(false, SceneName::Palette(colors, self.palette.get_selected_idx() as usize));
+            self.result = SceneUpdateResult::Push(
+                false,
+                SceneName::Palette(colors, self.palette.get_selected_idx() as usize),
+            );
         }
         if self.palette.on_mouse_click(mouse.xy) {
             self.canvas.set_color_index(self.palette.get_selected_idx());
@@ -619,7 +620,7 @@ impl Scene<SceneResult, SceneName> for Editor {
     fn update(
         &mut self,
         timing: &Timing,
-        _: &MouseData,
+        mouse: &MouseData,
         _: &[KeyCode],
     ) -> SceneUpdateResult<SceneResult, SceneName> {
         self.speed.update(timing);
@@ -650,6 +651,20 @@ impl Scene<SceneResult, SceneName> for Editor {
             } else {
                 self.add_frame.set_state(ElementState::Normal);
                 self.copy_frame.set_state(ElementState::Normal);
+            }
+
+
+            if mouse.is_down(MouseButton::Left).is_some()
+                && self.canvas.on_mouse_down(mouse.xy, &mut self.history) {
+                self.canvas
+                    .set_image(self.history.get_current_image().clone());
+                self.preview.set_image(self.canvas.get_image().clone());
+                self.timeline
+                    .update_frame(self.history.get_current_image().clone());
+                if self.history.is_first_event_light_pixel() {
+                    let color = self.preview.select_dark_background();
+                    self.timeline.set_background(color)
+                }
             }
         }
 

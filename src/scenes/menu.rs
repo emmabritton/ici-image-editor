@@ -16,7 +16,7 @@ pub struct Menu {
     logo: Image,
     new_button: Button,
     load_button: Button,
-    prefs: AppPrefs<Settings>
+    prefs: AppPrefs<Settings>,
 }
 
 fn make_image(width: usize, height: usize, method: fn(&mut Graphics)) -> Result<Image> {
@@ -43,7 +43,7 @@ impl Menu {
             logo,
             new_button,
             load_button,
-            prefs
+            prefs,
         })
     }
 }
@@ -80,10 +80,7 @@ impl Scene<SceneResult, SceneName> for Menu {
             )
             .pick_file()
             {
-                self.result = Push(
-                    false,
-                    SceneName::Editor(EditorDetails::Open(path)),
-                );
+                self.result = Push(false, SceneName::Editor(EditorDetails::Open(path)));
             }
         }
     }

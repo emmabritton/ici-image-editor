@@ -3,7 +3,6 @@ use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
 use rfd::FileDialog;
 use std::path::PathBuf;
 
-// pub mod editor;
 pub mod menu;
 pub mod new_editor;
 pub mod new_image_dialog;

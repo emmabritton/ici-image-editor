@@ -28,7 +28,7 @@ pub fn palette_vic() -> JascPalette {
 
 pub fn palette_default() -> JascPalette {
     JascPalette::new(
-        vec![
+        [
             TRANSPARENT,
             WHITE,
             BLACK,

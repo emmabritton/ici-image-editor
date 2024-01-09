@@ -45,11 +45,18 @@ pub struct PaletteDialog {
     current_color: Color,
     dialog_pos: Coord,
     file_path: Option<PathBuf>,
-    prefs: AppPrefs<Settings>
+    prefs: AppPrefs<Settings>,
 }
 
 impl PaletteDialog {
-    pub fn new(colors: Vec<Color>, width: usize, height: usize, selected: usize, prefs: AppPrefs<Settings>, style: &DialogStyle) -> Box<Self> {
+    pub fn new(
+        colors: Vec<Color>,
+        width: usize,
+        height: usize,
+        selected: usize,
+        prefs: AppPrefs<Settings>,
+        style: &DialogStyle,
+    ) -> Box<Self> {
         let dialog_pos = style.bounds.top_left();
         let background = dialog_background(width, height, style);
         let button_start_pos = dialog_pos + (4, 4);
@@ -182,7 +189,7 @@ impl PaletteDialog {
             blue,
             alpha,
             current_color: WHITE,
-            prefs
+            prefs,
         };
         dialog.update_selected_color_display();
         Box::new(dialog)
@@ -341,7 +348,10 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
             self.result = Pop(None);
         }
         if self.ok.on_mouse_click(down_at, mouse.xy) {
-            self.result = Pop(Some(SceneResult::Palette(self.colors.clone(), self.selected_color)));
+            self.result = Pop(Some(SceneResult::Palette(
+                self.colors.clone(),
+                self.selected_color,
+            )));
         }
         if self.gb.on_mouse_click(down_at, mouse.xy) {
             self.reset_colors(&palette_gb().colors);
@@ -389,14 +399,28 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
             }
         }
         if self.save.on_mouse_click(down_at, mouse.xy) {
-            if let Some(path) = file_dialog(self.file_path.clone().unwrap_or(self.prefs.data.last_used_pal_dir.clone()), &[("Palette", "pal")]).save_file() {
+            if let Some(path) = file_dialog(
+                self.file_path
+                    .clone()
+                    .unwrap_or(self.prefs.data.last_used_pal_dir.clone()),
+                &[("Palette", "pal")],
+            )
+            .save_file()
+            {
                 self.file_path = Some(path.clone());
                 self.prefs.data.last_used_pal_dir = path;
                 self.save_palette();
             }
         }
         if self.load.on_mouse_click(down_at, mouse.xy) {
-            if let Some(path) = file_dialog(self.file_path.clone().unwrap_or(self.prefs.data.last_used_pal_dir.clone()), &[("Palette", "pal")]).pick_file() {
+            if let Some(path) = file_dialog(
+                self.file_path
+                    .clone()
+                    .unwrap_or(self.prefs.data.last_used_pal_dir.clone()),
+                &[("Palette", "pal")],
+            )
+            .pick_file()
+            {
                 self.file_path = Some(path.clone());
                 self.prefs.data.last_used_pal_dir = path;
                 self.load_palette();
