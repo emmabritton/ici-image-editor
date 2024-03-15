@@ -91,6 +91,7 @@ fn main() -> Result<()> {
         switcher,
         Menu::new(settings(), load_default_palette(), &options.style.button),
         options,
+        empty_pre_post()
     )?;
     Ok(())
 }
