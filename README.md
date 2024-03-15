@@ -6,7 +6,7 @@ Used to edit ICI images (`IndexedImage` and `AnimatedIndexedImage`) from [ici-fi
 
 Open the program normally
 
-or set a default palette for normal images with
+or set a default palette for new images with
 `./image-editor /path/to/palette`
 
 ## Controls

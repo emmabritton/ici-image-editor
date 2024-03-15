@@ -1,5 +1,8 @@
 # Changelog
 
+### Version 0.5.0
+- Update deps
+
 ### Version 0.4.1
 - Use last save/load directory
 - Keep selected palette index
