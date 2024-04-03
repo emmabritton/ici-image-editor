@@ -4,7 +4,9 @@ use rfd::FileDialog;
 use std::path::PathBuf;
 
 pub mod menu;
-pub mod new_editor;
+// pub mod new_editor;
+pub mod editor;
+mod editor_ui;
 pub mod new_image_dialog;
 pub mod palette_dialog;
 pub mod save_palette_dialog;

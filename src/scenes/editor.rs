@@ -10,29 +10,32 @@ use pixels_graphics_lib::ui::prelude::TextFilter::Decimal;
 use pixels_graphics_lib::ui::prelude::*;
 
 use crate::palettes::palette_default;
+use crate::scenes::editor_ui::*;
 use crate::ui::edit_history::EditHistory;
 use crate::ui::preview::Preview;
 use crate::ui::timeline::Timeline;
 use log::error;
+use pixels_graphics_lib::prelude::PixelFont::Standard6x7;
+use pixels_graphics_lib::ui::layout::relative::LayoutContext;
+use pixels_graphics_lib::{layout, px, render};
 use std::fs;
 use std::ops::Add;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
+pub(crate) const ID: u32 = 3;
+
 const PER_UNDO: u64 = 200;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 enum AlertAction {
-    Clear,
+    New,
     Close,
+    Open,
 }
 
-const NAME: Coord = Coord::new(2, 2);
-const NAME_LINE_Y: isize = 12;
 const PADDING: isize = 4;
-const BUTTON_Y: isize = NAME_LINE_Y + PADDING;
-const FRAME_CONTROL: Coord = Coord::new(4, 200);
-const FRAME_CONTROL_SPACING: isize = 20;
+const PALETTE_WIDTH: usize = 58;
 const PALETTE_HEIGHT: usize = 58;
 
 const TOOL_PENCIL: usize = 0;
@@ -40,7 +43,7 @@ const TOOL_LINE: usize = 1;
 const TOOL_RECT: usize = 2;
 const TOOL_FILL: usize = 3;
 
-const UNTITLED: &str = "untitled";
+const UNTITLED: &str = "Untitled";
 const CORRUPT: &str = "???";
 
 #[derive(Debug, Clone, PartialEq)]
@@ -75,6 +78,24 @@ impl SaveData {
             ..SaveData::default()
         }
     }
+
+    pub fn filename(&self) -> String {
+        if let Some(path) = &self.path {
+            PathBuf::from(path)
+                .file_name()
+                .map(|s| s.to_string_lossy().to_string())
+                .map(|s| {
+                    if s.ends_with(".ici") || s.ends_with(".ica") {
+                        s.chars().take(s.chars().count() - 4).collect()
+                    } else {
+                        s
+                    }
+                })
+                .unwrap_or(CORRUPT.to_string())
+        } else {
+            UNTITLED.to_string()
+        }
+    }
 }
 
 impl SaveData {
@@ -89,12 +110,8 @@ impl SaveData {
 
 pub struct Editor {
     result: SUR,
-    clear: Button,
     tools: ToggleIconButtonGroup<usize>,
-    save: Button,
-    save_as: Button,
-    close: Button,
-    edit_palette: Button,
+    filename: Label,
     speed: TextField,
     play_pause: IconButton,
     add_frame: IconButton,
@@ -109,12 +126,12 @@ pub struct Editor {
     is_playing: bool,
     next_frame_swap: f64,
     anim_frame_idx: usize,
-    palette_info: Rect,
     prefs: AppPrefs<Settings>,
     error: Option<String>,
     save_data: SaveData,
     alert: Alert,
     pending_alert: Option<AlertAction>,
+    menubar: MenuBar<MenuId>,
 }
 
 impl Editor {
@@ -126,29 +143,8 @@ impl Editor {
         default_palette: DefaultPalette,
         style: &UiStyle,
     ) -> Box<Self> {
-        let save = Button::new((PADDING, BUTTON_Y), "Save", None, &style.button);
-        let save_as = Button::new(
-            (save.bounds().bottom_right().x + PADDING, BUTTON_Y),
-            "Save As",
-            None,
-            &style.button,
-        );
-        let clear = Button::new((188, BUTTON_Y), "Clear", None, &style.button);
-        let close = Button::new(
-            (
-                (width - clear.bounds().width()) as isize - PADDING,
-                BUTTON_Y,
-            ),
-            "Close",
-            None,
-            &style.button,
-        );
-        let edit_palette = Button::new(
-            (PADDING, save.bounds().bottom_right().y + PADDING),
-            "Palette",
-            None,
-            &style.button,
-        );
+        let mut menubar = create_menubar(style);
+
         let alert = Alert::new_question(
             &["Are you sure?", "All changes will be lost"],
             "Cancel",
@@ -157,44 +153,44 @@ impl Editor {
             height,
             &style.alert,
         );
-        let add_frame = IconButton::new(
-            FRAME_CONTROL,
-            "Add frame",
-            Positioning::Center,
+        let mut add_frame = IconButton::new(
+            Coord::default(),
+            "ADD FRAME",
+            Positioning::LeftCenter,
             IndexedImage::from_file_contents(include_bytes!("../../assets/icons/add.ici"))
                 .unwrap()
                 .0,
             &style.icon_button,
         );
-        let remove_frame = IconButton::new(
-            FRAME_CONTROL + (FRAME_CONTROL_SPACING, 0),
-            "Remove frame",
-            Positioning::Center,
+        let mut remove_frame = IconButton::new(
+            Coord::default(),
+            "REMOVE FRAME",
+            Positioning::LeftCenter,
             IndexedImage::from_file_contents(include_bytes!("../../assets/icons/remove.ici"))
                 .unwrap()
                 .0,
             &style.icon_button,
         );
-        let copy_frame = IconButton::new(
-            FRAME_CONTROL + (FRAME_CONTROL_SPACING * 2, 0),
-            "Copy frame",
-            Positioning::Center,
+        let mut copy_frame = IconButton::new(
+            Coord::default(),
+            "COPY FRAME",
+            Positioning::LeftCenter,
             IndexedImage::from_file_contents(include_bytes!("../../assets/icons/copy.ici"))
                 .unwrap()
                 .0,
             &style.icon_button,
         );
-        let play_pause = IconButton::new(
-            FRAME_CONTROL + (0, FRAME_CONTROL_SPACING),
-            "Play/Pause",
-            Positioning::Center,
+        let mut play_pause = IconButton::new(
+            Coord::default(),
+            "PLAY/PAUSE",
+            Positioning::LeftCenter,
             IndexedImage::from_file_contents(include_bytes!("../../assets/icons/play_pause.ici"))
                 .unwrap()
                 .0,
             &style.icon_button,
         );
         let mut speed = TextField::new(
-            FRAME_CONTROL + (FRAME_CONTROL_SPACING, FRAME_CONTROL_SPACING),
+            Coord::default(),
             6,
             PixelFont::Standard6x7,
             (None, Some(40)),
@@ -202,48 +198,43 @@ impl Editor {
             &[Decimal],
             &style.text_field,
         );
-        let pencil_tool = ToggleIconButton::new(
-            (105, BUTTON_Y),
-            "Pencil",
+        let mut pencil_tool = ToggleIconButton::new(
+            Coord::default(),
+            "PENCIL",
             Positioning::CenterBottom,
             IndexedImage::from_file_contents(include_bytes!("../../assets/icons/pencil.ici"))
                 .unwrap()
                 .0,
             &style.toggle_icon_button,
         );
-        let line_tool = ToggleIconButton::new(
-            (pencil_tool.bounds().bottom_right().x + PADDING, BUTTON_Y),
-            "Line",
+        let mut line_tool = ToggleIconButton::new(
+            Coord::default(),
+            "LINE",
             Positioning::CenterBottom,
             IndexedImage::from_file_contents(include_bytes!("../../assets/icons/line.ici"))
                 .unwrap()
                 .0,
             &style.toggle_icon_button,
         );
-        let rect_tool = ToggleIconButton::new(
-            (line_tool.bounds().bottom_right().x + PADDING, BUTTON_Y),
-            "Rect",
+        let mut rect_tool = ToggleIconButton::new(
+            Coord::default(),
+            "RECT",
             Positioning::CenterBottom,
             IndexedImage::from_file_contents(include_bytes!("../../assets/icons/rect.ici"))
                 .unwrap()
                 .0,
             &style.toggle_icon_button,
         );
-        let fill_tool = ToggleIconButton::new(
-            (rect_tool.bounds().bottom_right().x + PADDING, BUTTON_Y),
-            "Fill",
+        let mut fill_tool = ToggleIconButton::new(
+            Coord::default(),
+            "FILL",
             Positioning::CenterBottom,
             IndexedImage::from_file_contents(include_bytes!("../../assets/icons/fill.ici"))
                 .unwrap()
                 .0,
             &style.toggle_icon_button,
         );
-        let tools = ToggleIconButtonGroup::new(vec![
-            (TOOL_PENCIL, pencil_tool),
-            (TOOL_LINE, line_tool),
-            (TOOL_RECT, rect_tool),
-            (TOOL_FILL, fill_tool),
-        ]);
+        let mut filename = Label::singleline(UNTITLED, (0, 0), WHITE, Standard6x7, WIDTH - 4);
         let mut error = None;
         let mut save_data;
         let frames = match details {
@@ -277,6 +268,7 @@ impl Editor {
                     }
                 }
                 save_data.palette = Some(pal);
+                filename.update_text(&save_data.filename());
                 prefs.data.last_used_dir = path;
                 prefs.save();
                 images
@@ -297,28 +289,20 @@ impl Editor {
 
         let mut canvas = Canvas::new(
             Coord::new(
-                edit_palette.bounds().bottom_right().x + PADDING,
-                edit_palette.bounds().top_left().y,
+                pencil_tool.bounds().right() + PADDING,
+                pencil_tool.bounds().top(),
             ),
             (210, 200),
         );
 
         canvas.set_color_index(1);
         canvas.set_image(frames[0].clone());
-        let palette_info = Rect::new_with_size(
-            (
-                edit_palette.bounds().top_left().x,
-                edit_palette.bounds().bottom_right().y + PADDING,
-            ),
-            70,
-            4,
-        );
         let mut palette = PaletteView::new(
             Coord::new(
-                edit_palette.bounds().top_left().x,
-                edit_palette.bounds().bottom_right().y + PADDING + 6,
+                filename.bounds().left(),
+                filename.bounds().bottom() + PADDING + 6,
             ),
-            (edit_palette.bounds().width(), PALETTE_HEIGHT),
+            (PALETTE_WIDTH, PALETTE_HEIGHT),
         );
         palette.set_palette(canvas.get_image().get_palette());
         palette.set_color_index(1);
@@ -327,19 +311,58 @@ impl Editor {
         timeline.set_frames(frames.clone(), 0);
         let history = EditHistory::new(frames.clone());
         preview.set_image(history.get_current_image().clone());
+
+        let context = LayoutContext::new(Rect::new((0, 0), (WIDTH, HEIGHT)));
+        layout!(context, menubar, align_top);
+        layout!(context, menubar, align_left);
+
+        layout!(context, filename, top_to_bottom_of menubar, px!(2));
+        layout!(context, filename, align_left, px!(1));
+
+        layout!(context, palette, align_left, px!(4));
+        layout!(context, palette, top_to_bottom_of filename, px!(14));
+
+        layout!(context, pencil_tool, top_to_bottom_of filename, px!(4));
+        layout!(context, pencil_tool, left_to_right_of palette, px!(12));
+        layout!(context, line_tool, top_to_top_of pencil_tool);
+        layout!(context, line_tool, left_to_right_of pencil_tool, px!(4));
+        layout!(context, rect_tool, top_to_top_of pencil_tool);
+        layout!(context, rect_tool, left_to_right_of line_tool, px!(4));
+        layout!(context, fill_tool, top_to_top_of pencil_tool);
+        layout!(context, fill_tool, left_to_right_of rect_tool, px!(4));
+
+        layout!(context, play_pause, align_left, px!(4));
+        layout!(context, play_pause, align_bottom, px!(4));
+
+        layout!(context, speed, top_to_top_of play_pause);
+        layout!(context, speed, left_to_right_of play_pause, px!(6));
+        layout!(context, add_frame, left_to_left_of play_pause);
+        layout!(context, add_frame, bottom_to_top_of play_pause, px!(6));
+        layout!(context, remove_frame, left_to_right_of add_frame, px!(6));
+        layout!(context, remove_frame, top_to_top_of add_frame);
+        layout!(context, copy_frame, left_to_right_of remove_frame, px!(6));
+        layout!(context, copy_frame, top_to_top_of add_frame);
+
+        layout!(context, preview, left_to_left_of add_frame);
+        layout!(context, preview, bottom_to_top_of add_frame, px!(6));
+
+        let tools = ToggleIconButtonGroup::new(vec![
+            (TOOL_PENCIL, pencil_tool),
+            (TOOL_LINE, line_tool),
+            (TOOL_RECT, rect_tool),
+            (TOOL_FILL, fill_tool),
+        ]);
+
         let mut editor = Self {
             alert,
             pending_alert: None,
             save_data,
             error,
             timeline,
+            menubar,
+            filename,
             result: Nothing,
-            clear,
             tools,
-            save,
-            save_as,
-            close,
-            edit_palette,
             speed,
             play_pause,
             add_frame,
@@ -354,7 +377,6 @@ impl Editor {
             next_frame_swap: 0.0,
             anim_frame_idx: 0,
             prefs,
-            palette_info,
         };
         editor.relayout_canvas(frames.len() > 1);
         Box::new(editor)
@@ -380,6 +402,7 @@ impl Editor {
             .save_file()
             {
                 self.save_data.path = Some(path.clone());
+                self.filename.update_text(&self.save_data.filename());
                 self.prefs.data.last_used_dir = path;
                 self.prefs.save();
             } else {
@@ -440,34 +463,40 @@ impl Editor {
             self.timeline = Timeline::new(Rect::new_with_size(
                 (
                     self.preview.bounds().right() + PADDING,
-                    self.play_pause.bounds().bottom() - (image_height as isize + PADDING),
+                    self.play_pause.bounds().bottom() - (image_height as isize),
                 ),
                 200,
                 image_height + 4,
             ));
             self.canvas = Canvas::new(
                 Coord::new(
-                    self.edit_palette.bounds().bottom_right().x + PADDING,
-                    self.edit_palette.bounds().top_left().y,
+                    self.tools.get(TOOL_PENCIL).bounds().left(),
+                    self.tools.get(TOOL_PENCIL).bounds().bottom() + PADDING,
                 ),
                 (
-                    210,
+                    (WIDTH as isize - self.tools.get(TOOL_PENCIL).bounds().left()) as usize,
                     (self.timeline.bounds().top()
-                        - self.edit_palette.bounds().top_left().y
+                        - self.tools.get(TOOL_PENCIL).bounds().bottom()
                         - PADDING) as usize,
                 ),
             );
-            self.play_pause.set_state(ElementState::Normal);
+            self.play_pause.set_state(ViewState::Normal);
         } else {
             self.timeline = Timeline::new(Rect::new_with_size((-1, -1), 0, 0));
             self.canvas = Canvas::new(
                 Coord::new(
-                    self.edit_palette.bounds().bottom_right().x + PADDING,
-                    self.edit_palette.bounds().top_left().y,
+                    self.tools.get(TOOL_PENCIL).bounds().left(),
+                    self.tools.get(TOOL_PENCIL).bounds().bottom() + PADDING,
                 ),
-                (210, 200),
+                (
+                    (WIDTH as isize - self.tools.get(TOOL_PENCIL).bounds().left()) as usize,
+                    (HEIGHT as isize
+                        - self.tools.get(TOOL_PENCIL).bounds().bottom()
+                        - PADDING
+                        - PADDING) as usize,
+                ),
             );
-            self.play_pause.set_state(ElementState::Disabled);
+            self.play_pause.set_state(ViewState::Disabled);
         }
         self.canvas.set_color_index(self.palette.get_selected_idx());
         self.canvas
@@ -476,9 +505,46 @@ impl Editor {
             .set_frames(self.history.get_images(), self.history.active_frame());
         self.canvas.set_usage_state(state);
     }
+
+    fn undo(&mut self) {
+        self.history.undo().unwrap();
+        self.last_undo = Instant::now().add(Duration::from_millis(PER_UNDO));
+        self.image_update();
+    }
+
+    fn redo(&mut self) {
+        self.history.redo().unwrap();
+        self.last_undo = Instant::now().add(Duration::from_millis(PER_UNDO));
+        self.image_update();
+    }
+
+    fn image_update(&mut self) {
+        self.palette.set_palette(self.canvas.get_palette());
+        self.canvas
+            .set_image(self.history.get_current_image().clone());
+        self.timeline
+            .set_frames(self.history.get_images(), self.history.active_frame());
+        self.preview
+            .set_image(self.history.get_current_image().clone());
+    }
+
+    fn open_file(&mut self) {
+        if let Some(path) = file_dialog(
+            self.prefs.data.last_used_dir.clone(),
+            &[("IndexedImage", "ici"), ("AnimatedIndexedImage", "ica")],
+        )
+        .pick_file()
+        {
+            self.result = Push(false, SceneName::Editor(EditorDetails::Open(path)));
+        }
+    }
 }
 
 impl Scene<SceneResult, SceneName> for Editor {
+    fn id(&self) -> u32 {
+        ID
+    }
+
     fn render(&self, graphics: &mut Graphics, mouse: &MouseData, _: &[KeyCode]) {
         graphics.clear(BACKGROUND);
 
@@ -486,63 +552,53 @@ impl Scene<SceneResult, SceneName> for Editor {
             graphics.draw_text(
                 &format!("{msg}\nPress escape to close"),
                 TextPos::px(coord!(WIDTH / 2, HEIGHT / 2)),
-                (RED, PixelFont::Standard8x10, WrappingStrategy::AtCol(20), Positioning::Center),
+                (
+                    RED,
+                    PixelFont::Standard8x10,
+                    WrappingStrategy::AtCol(20),
+                    Positioning::Center,
+                ),
             );
             return;
         }
 
-        let name = if let Some(path) = &self.save_data.path {
-            PathBuf::from(path)
-                .file_name()
-                .map(|s| s.to_string_lossy().to_string())
-                .map(|s| {
-                    if s.ends_with(".ici") || s.ends_with(".ica") {
-                        s.chars().take(s.chars().count() - 4).collect()
-                    } else {
-                        s
-                    }
-                })
-                .unwrap_or(CORRUPT.to_string())
-        } else {
-            UNTITLED.to_string()
-        };
-        graphics.draw_text(
-            &name,
-            TextPos::px(NAME),
-            (WHITE, PixelFont::Standard6x7, WrappingStrategy::Ellipsis(38)),
+        graphics.draw_line(
+            (0, self.filename.bounds().bottom()),
+            (WIDTH as isize, self.filename.bounds().bottom()),
+            LIGHT_GRAY,
         );
-        graphics.draw_line((0, NAME_LINE_Y), (WIDTH as isize, NAME_LINE_Y), LIGHT_GRAY);
         let text = if let Some(pal) = &self.save_data.palette {
             match pal {
-                FilePalette::NoData => String::from("Don't include"),
+                FilePalette::NoData => String::from("DON'T INCLUDE"),
                 FilePalette::ID(id) => format!("ID: {id}"),
                 FilePalette::Name(name) => format!("\"{name}\""),
-                FilePalette::Colors => String::from("Incl as colors"),
+                FilePalette::Colors => String::from("INCL AS COLORS"),
             }
         } else {
             String::from("-")
         };
         graphics.draw_text(
             &text,
-            TextPos::px(self.palette_info.top_left()),
+            TextPos::px(self.filename.bounds().bottom_left() + (0, 4)),
             (WHITE, PixelFont::Standard4x5, WrappingStrategy::Cutoff(14)),
         );
 
-        self.speed.render(graphics, mouse);
-        self.add_frame.render(graphics, mouse);
-        self.remove_frame.render(graphics, mouse);
-        self.copy_frame.render(graphics, mouse);
-        self.play_pause.render(graphics, mouse);
-        self.tools.render(graphics, mouse);
-        self.save.render(graphics, mouse);
-        self.save_as.render(graphics, mouse);
-        self.clear.render(graphics, mouse);
-        self.close.render(graphics, mouse);
-        self.palette.render(graphics, mouse);
-        self.edit_palette.render(graphics, mouse);
-        self.canvas.render(graphics, mouse);
-        self.preview.render(graphics, mouse);
-        self.timeline.render(graphics, mouse);
+        render!(
+            graphics,
+            mouse,
+            self.canvas,
+            self.speed,
+            self.copy_frame,
+            self.remove_frame,
+            self.add_frame,
+            self.play_pause,
+            self.tools,
+            self.palette,
+            self.preview,
+            self.timeline,
+            self.filename,
+            self.menubar,
+        );
 
         if self.pending_alert.is_some() {
             self.alert.render(graphics, mouse);
@@ -566,15 +622,7 @@ impl Scene<SceneResult, SceneName> for Editor {
                     || held.contains(&KeyCode::ControlRight)
                     || held.contains(&KeyCode::SuperRight))
             {
-                self.history.undo().unwrap();
-                self.last_undo = Instant::now().add(Duration::from_millis(PER_UNDO));
-                self.palette.set_palette(self.canvas.get_palette());
-                self.canvas
-                    .set_image(self.history.get_current_image().clone());
-                self.timeline
-                    .set_frames(self.history.get_images(), self.history.active_frame());
-                self.preview
-                    .set_image(self.history.get_current_image().clone());
+                self.undo();
             }
             if ((key == KeyCode::KeyZ
                 && (held.contains(&KeyCode::ShiftLeft) || held.contains(&KeyCode::ShiftRight)))
@@ -584,21 +632,31 @@ impl Scene<SceneResult, SceneName> for Editor {
                     || held.contains(&KeyCode::ControlRight)
                     || held.contains(&KeyCode::SuperRight))
             {
-                self.history.redo().unwrap();
-                self.last_undo = Instant::now().add(Duration::from_millis(PER_UNDO));
-                self.palette.set_palette(self.canvas.get_palette());
-                self.canvas
-                    .set_image(self.history.get_current_image().clone());
-                self.timeline
-                    .set_frames(self.history.get_images(), self.history.active_frame());
-                self.preview
-                    .set_image(self.history.get_current_image().clone());
+                self.redo();
             }
         }
     }
 
     fn on_key_up(&mut self, key: KeyCode, _: &MouseData, held: &[KeyCode]) {
         self.speed.on_key_press(key, held);
+
+        if !self.speed.is_focused() {
+            let shift_down =
+                held.contains(&KeyCode::ShiftLeft) || held.contains(&KeyCode::ShiftRight);
+            if shift_down && key == KeyCode::ArrowUp {
+                self.history.move_up().unwrap();
+                self.image_update();
+            } else if shift_down && key == KeyCode::ArrowDown {
+                self.history.move_down().unwrap();
+                self.image_update();
+            } else if shift_down && key == KeyCode::ArrowLeft {
+                self.history.move_left().unwrap();
+                self.image_update();
+            } else if shift_down && key == KeyCode::ArrowRight {
+                self.history.move_right().unwrap();
+                self.image_update();
+            }
+        }
     }
 
     fn on_mouse_click(
@@ -618,18 +676,139 @@ impl Scene<SceneResult, SceneName> for Editor {
             if let Some(result) = self.alert.on_mouse_click(down_at, mouse.xy) {
                 if result == AlertResult::Positive {
                     match pending {
-                        AlertAction::Clear => {
-                            self.history.add_clear().unwrap();
-                            self.canvas
-                                .set_image(self.history.get_current_image().clone());
-                            self.preview.set_image(self.canvas.get_image().clone());
-                            self.timeline
-                                .update_frame(self.history.get_current_image().clone());
-                        }
                         AlertAction::Close => self.result = Pop(None),
+                        AlertAction::New => self.result = Push(false, SceneName::NewImage),
+                        AlertAction::Open => self.open_file(),
                     }
                 }
                 self.pending_alert = None;
+            }
+            return;
+        }
+        if self.menubar.is_expanded() {
+            if let Some(id) = self.menubar.on_mouse_click(down_at, mouse.xy) {
+                match id {
+                    MenuId::MenuFileQuit => {
+                        if self.history.is_empty() {
+                            self.result = Pop(None);
+                        } else {
+                            self.pending_alert = Some(AlertAction::Close);
+                        }
+                    }
+                    MenuId::MenuImageClear => {
+                        self.history.add_clear().unwrap();
+                        self.image_update();
+                    }
+                    MenuId::MenuFileSave => {
+                        self.save_data.new_file = false;
+                        if keys.contains(&KeyCode::ShiftLeft)
+                            || keys.contains(&KeyCode::ShiftRight)
+                            || self.history.frame_count() == 1
+                        {
+                            self.save_data.index = Some(self.history.active_frame())
+                        } else {
+                            self.save_data.index = None;
+                        }
+                        self.save();
+                    }
+                    MenuId::MenuFileSaveAs => {
+                        self.save_data.new_file = true;
+                        if keys.contains(&KeyCode::ShiftLeft)
+                            || keys.contains(&KeyCode::ShiftRight)
+                            || self.history.frame_count() == 1
+                        {
+                            self.save_data.index = Some(self.history.active_frame())
+                        } else {
+                            self.save_data.index = None;
+                        }
+                        self.save();
+                    }
+                    MenuId::MenuEditUndo => self.undo(),
+                    MenuId::MenuEditRedo => self.redo(),
+                    MenuId::MenuPaletteEdit => {
+                        let colors = self.canvas.get_image().get_palette().to_vec();
+                        self.result = Push(
+                            false,
+                            SceneName::Palette(colors, self.palette.get_selected_idx() as usize),
+                        );
+                    }
+                    MenuId::MenuPaletteMode => {
+                        self.save_data.ignore_next_save = true;
+                        self.result = Push(
+                            false,
+                            SceneName::SavePaletteData(self.save_data.palette.clone()),
+                        )
+                    }
+                    MenuId::MenuFileNew => {
+                        if self.history.is_frame_empty() {
+                            self.result = Push(false, SceneName::NewImage);
+                        } else {
+                            self.pending_alert = Some(AlertAction::New);
+                        }
+                    }
+                    MenuId::MenuFileOpen => {
+                        if self.history.is_frame_empty() {
+                            self.open_file();
+                        } else {
+                            self.pending_alert = Some(AlertAction::Open);
+                        }
+                    }
+                    MenuId::MenuImageFlipH => {
+                        self.history.flip_h().unwrap();
+                        self.image_update();
+                    }
+                    MenuId::MenuImageFlipV => {
+                        self.history.flip_v().unwrap();
+                        self.image_update();
+                    }
+                    MenuId::MenuImageRotCw90 => {
+                        self.history.rotate_cw_90().unwrap();
+                        self.image_update();
+                    }
+                    MenuId::MenuImageRotCw180 => {
+                        self.history.rotate_cw_180().unwrap();
+                        self.image_update();
+                    }
+                    MenuId::MenuImageRotCw270 => {
+                        self.history.rotate_cw_270().unwrap();
+                        self.image_update();
+                    }
+                    MenuId::MenuImageRotCcw90 => {
+                        self.history.rotate_ccw_90().unwrap();
+                        self.image_update();
+                    }
+                    MenuId::MenuImageRotCcw180 => {
+                        self.history.rotate_ccw_180().unwrap();
+                        self.image_update();
+                    }
+                    MenuId::MenuImageRotCcw270 => {
+                        self.history.rotate_ccw_270().unwrap();
+                        self.image_update();
+                    }
+                    MenuId::MenuImageShiftUp => {
+                        self.history.move_up().unwrap();
+                        self.image_update();
+                    }
+                    MenuId::MenuImageShiftDown => {
+                        self.history.move_down().unwrap();
+                        self.image_update();
+                    }
+                    MenuId::MenuImageShiftLeft => {
+                        self.history.move_left().unwrap();
+                        self.image_update();
+                    }
+                    MenuId::MenuImageShiftRight => {
+                        self.history.move_right().unwrap();
+                        self.image_update();
+                    }
+                    MenuId::MenuFile => {}
+                    MenuId::MenuEdit => {}
+                    MenuId::MenuImage => {}
+                    MenuId::MenuPalette => {}
+                    MenuId::MenuImageRotCw => {}
+                    MenuId::MenuImageRotCcw => {}
+                    MenuId::MenuImageShift => {}
+                }
             }
             return;
         }
@@ -645,36 +824,35 @@ impl Scene<SceneResult, SceneName> for Editor {
         if self.play_pause.on_mouse_click(down_at, mouse.xy) {
             if self.is_playing {
                 self.is_playing = false;
-                self.add_frame.set_state(ElementState::Normal);
-                self.speed.set_state(ElementState::Normal);
-                self.remove_frame.set_state(ElementState::Normal);
-                self.copy_frame.set_state(ElementState::Normal);
-                self.timeline.set_state(ElementState::Normal);
-                self.palette.set_state(ElementState::Normal);
-                self.canvas.set_state(ElementState::Normal);
-                self.clear.set_state(ElementState::Normal);
-                self.edit_palette.set_state(ElementState::Normal);
+                self.add_frame.set_state(ViewState::Normal);
+                self.speed.set_state(ViewState::Normal);
+                self.remove_frame.set_state(ViewState::Normal);
+                self.copy_frame.set_state(ViewState::Normal);
+                self.timeline.set_state(ViewState::Normal);
+                self.palette.set_state(ViewState::Normal);
+                self.canvas.set_state(ViewState::Normal);
+                self.menubar.set_state(MenuId::MenuEdit, ViewState::Normal);
+                self.menubar.set_state(MenuId::MenuImage, ViewState::Normal);
+                self.menubar
+                    .set_state(MenuId::MenuPalette, ViewState::Normal);
             } else {
                 self.is_playing = true;
                 self.anim_frame_idx = 0;
                 self.next_frame_swap = self.speed.content().parse::<f64>().unwrap_or(1.0);
-                self.add_frame.set_state(ElementState::Disabled);
-                self.speed.set_state(ElementState::Disabled);
-                self.remove_frame.set_state(ElementState::Disabled);
-                self.copy_frame.set_state(ElementState::Disabled);
-                self.timeline.set_state(ElementState::Disabled);
-                self.palette.set_state(ElementState::Disabled);
-                self.canvas.set_state(ElementState::Disabled);
-                self.clear.set_state(ElementState::Disabled);
-                self.edit_palette.set_state(ElementState::Disabled);
+                self.add_frame.set_state(ViewState::Disabled);
+                self.speed.set_state(ViewState::Disabled);
+                self.remove_frame.set_state(ViewState::Disabled);
+                self.copy_frame.set_state(ViewState::Disabled);
+                self.timeline.set_state(ViewState::Disabled);
+                self.palette.set_state(ViewState::Disabled);
+                self.canvas.set_state(ViewState::Disabled);
+                self.menubar
+                    .set_state(MenuId::MenuEdit, ViewState::Disabled);
+                self.menubar
+                    .set_state(MenuId::MenuImage, ViewState::Disabled);
+                self.menubar
+                    .set_state(MenuId::MenuPalette, ViewState::Disabled);
             }
-        }
-        if self.palette_info.contains(mouse.xy) {
-            self.save_data.ignore_next_save = true;
-            self.result = Push(
-                false,
-                SceneName::SavePaletteData(self.save_data.palette.clone()),
-            )
         }
         if self.add_frame.on_mouse_click(down_at, mouse.xy) {
             self.history.add_blank_frame().unwrap();
@@ -703,56 +881,7 @@ impl Scene<SceneResult, SceneName> for Editor {
             }
             self.save_data.index = None;
         }
-        if self.close.on_mouse_click(down_at, mouse.xy) {
-            if self.history.is_empty() {
-                self.result = Pop(None);
-            } else {
-                self.pending_alert = Some(AlertAction::Close);
-            }
-        }
-        if self.clear.on_mouse_click(down_at, mouse.xy) {
-            if self.history.is_frame_empty() {
-                self.history.add_clear().unwrap();
-            } else {
-                self.pending_alert = Some(AlertAction::Clear);
-            }
-        }
-        if self.save.on_mouse_click(down_at, mouse.xy) {
-            self.save_data.new_file = false;
-            if keys.contains(&KeyCode::ShiftLeft)
-                || keys.contains(&KeyCode::ShiftRight)
-                || self.history.frame_count() == 1
-            {
-                self.save_data.index = Some(self.history.active_frame())
-            } else {
-                self.save_data.index = None;
-            }
-            self.save();
-        }
-        if self.save_as.on_mouse_click(down_at, mouse.xy) {
-            self.save_data.new_file = true;
-            if keys.contains(&KeyCode::ShiftLeft)
-                || keys.contains(&KeyCode::ShiftRight)
-                || self.history.frame_count() == 1
-            {
-                self.save_data.index = Some(self.history.active_frame())
-            } else {
-                self.save_data.index = None;
-            }
-            self.save();
-        }
         self.speed.on_mouse_click(down_at, mouse.xy);
-        if self.edit_palette.on_mouse_click(down_at, mouse.xy) {
-            let colors = self
-                .canvas
-                .get_image()
-                .get_palette()
-                .to_vec();
-            self.result = Push(
-                false,
-                SceneName::Palette(colors, self.palette.get_selected_idx() as usize),
-            );
-        }
         if self.palette.on_mouse_click(mouse.xy) {
             self.canvas.set_color_index(self.palette.get_selected_idx());
         }
@@ -799,19 +928,20 @@ impl Scene<SceneResult, SceneName> for Editor {
         } else {
             let frame_count = self.history.frame_count();
             if frame_count == 1 {
-                self.remove_frame.set_state(ElementState::Disabled);
+                self.remove_frame.set_state(ViewState::Disabled);
             } else {
-                self.remove_frame.set_state(ElementState::Normal);
+                self.remove_frame.set_state(ViewState::Normal);
             }
             if frame_count > 254 {
-                self.add_frame.set_state(ElementState::Disabled);
-                self.copy_frame.set_state(ElementState::Disabled);
+                self.add_frame.set_state(ViewState::Disabled);
+                self.copy_frame.set_state(ViewState::Disabled);
             } else {
-                self.add_frame.set_state(ElementState::Normal);
-                self.copy_frame.set_state(ElementState::Normal);
+                self.add_frame.set_state(ViewState::Normal);
+                self.copy_frame.set_state(ViewState::Normal);
             }
 
             if mouse.is_down(MouseButton::Left).is_some()
+                && !self.menubar.is_expanded()
                 && self.canvas.on_mouse_down(mouse.xy, &mut self.history)
             {
                 self.canvas
@@ -825,6 +955,7 @@ impl Scene<SceneResult, SceneName> for Editor {
                 }
             }
         }
+        self.menubar.on_mouse_move(mouse.xy);
 
         self.result.clone()
     }

@@ -27,25 +27,20 @@ pub fn palette_vic() -> JascPalette {
 }
 
 pub fn palette_default() -> JascPalette {
-    JascPalette::new(
-        [
-            TRANSPARENT,
-            WHITE,
-            BLACK,
-            LIGHT_GRAY,
-            DARK_GRAY,
-            RED,
-            GREEN,
-            BLUE,
-            CYAN,
-            MAGENTA,
-            YELLOW,
-            ORANGE,
-            PURPLE,
-            BROWN,
-        ]
-        .iter()
-        .map(|c| c.to_ici())
-        .collect(),
-    )
+    JascPalette::new(vec![
+        TRANSPARENT,
+        BLACK,
+        WHITE,
+        LIGHT_GRAY,
+        DARK_GRAY,
+        RED,
+        GREEN,
+        BLUE,
+        CYAN,
+        MAGENTA,
+        YELLOW,
+        ORANGE,
+        PURPLE,
+        BROWN,
+    ])
 }

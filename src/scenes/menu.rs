@@ -1,9 +1,8 @@
-use crate::scenes::new_editor::EditorDetails;
+use crate::scenes::editor::EditorDetails;
 use crate::scenes::{file_dialog, BACKGROUND};
 use crate::SceneUpdateResult::{Nothing, Push};
 use crate::{DefaultPalette, Scene, SceneName, SceneResult, Settings, SUR};
 use color_eyre::Result;
-use pixels_graphics_lib::prelude::TextSize::{Large, Normal};
 use pixels_graphics_lib::prelude::*;
 use pixels_graphics_lib::ui::prelude::*;
 
@@ -36,9 +35,13 @@ impl Menu {
     ) -> Box<Self> {
         let logo = make_image(60, 40, |graphics| {
             graphics.draw_text(
-                "ici Image Editor",
+                "ICI IMAGE EDITOR",
                 TextPos::Px(0, 0),
-                (WHITE, Large, WrappingStrategy::SpaceBeforeCol(7)),
+                (
+                    WHITE,
+                    PixelFont::Standard8x10,
+                    WrappingStrategy::SpaceBeforeCol(7),
+                ),
             );
         })
         .unwrap();
@@ -66,12 +69,20 @@ impl Scene<SceneResult, SceneName> for Menu {
             DefaultPalette::Error(err) => graphics.draw_text(
                 &format!("Error: {err}"),
                 PALETTE_INFO_POS,
-                (RED, Normal, WrappingStrategy::SpaceBeforeCol(36)),
+                (
+                    RED,
+                    PixelFont::Standard6x7,
+                    WrappingStrategy::SpaceBeforeCol(36),
+                ),
             ),
             DefaultPalette::Palette(path, colors) => graphics.draw_text(
                 &format!("Using palette {path} with {} colors", colors.len()),
                 PALETTE_INFO_POS,
-                (WHITE, Normal, WrappingStrategy::SpaceBeforeCol(36)),
+                (
+                    WHITE,
+                    PixelFont::Standard6x7,
+                    WrappingStrategy::SpaceBeforeCol(36),
+                ),
             ),
         }
 

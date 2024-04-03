@@ -6,20 +6,25 @@ use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
 use std::mem::swap;
 #[cfg(test)]
 use std::println as debug;
+use std::ptr::swap_nonoverlapping;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum EditEvent {
+    /// A simple edit using one color, such a pencil or line
     PixelsChange {
         pixel_idxs: Vec<usize>,
         color_idx: u8,
     },
-    FrameAdd {
-        idx: usize,
-        content: Vec<u8>,
-    },
+    /// Full edit, such as flip or rotate
+    Full(Vec<u8>),
+    /// Add new animation frame
+    FrameAdd { idx: usize, content: Vec<u8> },
+    /// Delete animation frame
     FrameRemove(usize),
+    /// Change active animation frame
     FrameSelect(usize),
-    PaletteChange(Vec<IciColor>),
+    /// Palette change
+    PaletteChange(Vec<Color>),
 }
 
 #[derive(Debug)]
@@ -109,7 +114,7 @@ impl EditHistory {
                 let color = self.edited_images[self.active_frame]
                     .get_color(*color_idx)
                     .unwrap();
-                if pixel_idxs.len() == 1 && color.to_color().brightness() > 0.95 {
+                if pixel_idxs.len() == 1 && color.brightness() > 0.95 {
                     return true;
                 }
             }
@@ -119,6 +124,166 @@ impl EditHistory {
 }
 
 impl EditHistory {
+    pub fn flip_h(&mut self) -> Result<(), IndexedImageError> {
+        let mut output: Vec<u8> = self.edited_images[self.active_frame].get_pixels().to_vec();
+        let width = self.edited_images[self.active_frame].width() as usize;
+        let height = self.edited_images[self.active_frame].height() as usize;
+        let half_width = (width as f32 / 2.).floor() as usize;
+        for y in 0..height {
+            for x in 0..half_width {
+                let target_right_i = (width - 1 - x) + y * width;
+                let target_left_i = x + y * width;
+                unsafe {
+                    swap_nonoverlapping(&mut output[target_left_i], &mut output[target_right_i], 1);
+                }
+            }
+        }
+        self.add_event(EditEvent::Full(output))
+    }
+
+    pub fn flip_v(&mut self) -> Result<(), IndexedImageError> {
+        let mut output: Vec<u8> = self.edited_images[self.active_frame].get_pixels().to_vec();
+        let width = self.edited_images[self.active_frame].width() as usize;
+        let height = self.edited_images[self.active_frame].height() as usize;
+        let half_height = (height as f32 / 2.).floor() as usize;
+        for y in 0..half_height {
+            unsafe {
+                swap_nonoverlapping(
+                    &mut output[y * width],
+                    &mut output[(height - 1 - y) * width],
+                    width,
+                );
+            }
+        }
+        self.add_event(EditEvent::Full(output))
+    }
+
+    pub fn rotate_cw_90(&mut self) -> Result<(), IndexedImageError> {
+        self.rot_cw()
+    }
+
+    pub fn rotate_cw_180(&mut self) -> Result<(), IndexedImageError> {
+        self.rot_cw()?;
+        self.rot_cw()
+    }
+
+    pub fn rotate_cw_270(&mut self) -> Result<(), IndexedImageError> {
+        self.rot_cw()?;
+        self.rot_cw()?;
+        self.rot_cw()
+    }
+
+    pub fn rotate_ccw_90(&mut self) -> Result<(), IndexedImageError> {
+        self.rot_ccw()
+    }
+
+    pub fn rotate_ccw_180(&mut self) -> Result<(), IndexedImageError> {
+        self.rot_ccw()?;
+        self.rot_ccw()
+    }
+
+    pub fn rotate_ccw_270(&mut self) -> Result<(), IndexedImageError> {
+        self.rot_ccw()?;
+        self.rot_ccw()?;
+        self.rot_ccw()
+    }
+
+    fn rot_cw(&mut self) -> Result<(), IndexedImageError> {
+        let source = self.edited_images[self.active_frame].get_pixels();
+        let width = self.edited_images[self.active_frame].width() as usize;
+        let height = self.edited_images[self.active_frame].height() as usize;
+        let mut output: Vec<u8> = self.edited_images[self.active_frame].get_pixels().to_vec();
+
+        for y in 0..height {
+            for x in 0..width {
+                let new_y = x;
+                let new_x = width - y - 1;
+                let new_i = new_x + new_y * width;
+                let i = x + y * width;
+                output[new_i] = source[i];
+            }
+        }
+
+        self.add_event(EditEvent::Full(output))
+    }
+
+    fn rot_ccw(&mut self) -> Result<(), IndexedImageError> {
+        let source = self.edited_images[self.active_frame].get_pixels();
+        let width = self.edited_images[self.active_frame].width() as usize;
+        let height = self.edited_images[self.active_frame].height() as usize;
+        let mut output: Vec<u8> = self.edited_images[self.active_frame].get_pixels().to_vec();
+
+        for y in 0..height {
+            for x in 0..width {
+                let new_y = height - x - 1;
+                let new_x = y;
+                let new_i = new_x + new_y * width;
+                let i = x + y * width;
+                output[new_i] = source[i];
+            }
+        }
+
+        self.add_event(EditEvent::Full(output))
+    }
+
+    pub fn move_up(&mut self) -> Result<(), IndexedImageError> {
+        let mut output: Vec<u8> = self.edited_images[self.active_frame].get_pixels().to_vec();
+        let width = self.edited_images[self.active_frame].width() as usize;
+
+        let mut removed = vec![];
+        for _ in 0..width {
+            removed.push(output.remove(0));
+        }
+        output.extend_from_slice(&removed);
+
+        self.add_event(EditEvent::Full(output))
+    }
+
+    pub fn move_down(&mut self) -> Result<(), IndexedImageError> {
+        let mut output: Vec<u8> = self.edited_images[self.active_frame].get_pixels().to_vec();
+        let width = self.edited_images[self.active_frame].width() as usize;
+
+        let mut removed = vec![];
+        for _ in 0..width {
+            removed.push(output.remove(output.len() - 1));
+        }
+        for value in removed.into_iter() {
+            output.insert(0, value);
+        }
+
+        self.add_event(EditEvent::Full(output))
+    }
+
+    pub fn move_left(&mut self) -> Result<(), IndexedImageError> {
+        let mut output: Vec<u8> = self.edited_images[self.active_frame].get_pixels().to_vec();
+        let width = self.edited_images[self.active_frame].width() as usize;
+        let height = self.edited_images[self.active_frame].height() as usize;
+
+        for i in 0..height {
+            let take = i * width;
+            let insert = take + (width - 1);
+            let value = output.remove(take);
+            output.insert(insert, value);
+        }
+
+        self.add_event(EditEvent::Full(output))
+    }
+
+    pub fn move_right(&mut self) -> Result<(), IndexedImageError> {
+        let mut output: Vec<u8> = self.edited_images[self.active_frame].get_pixels().to_vec();
+        let width = self.edited_images[self.active_frame].width() as usize;
+        let height = self.edited_images[self.active_frame].height() as usize;
+
+        for i in 0..height {
+            let insert = i * width;
+            let take = insert + (width - 1);
+            let value = output.remove(take);
+            output.insert(insert, value);
+        }
+
+        self.add_event(EditEvent::Full(output))
+    }
+
     pub fn add_line(
         &mut self,
         start: (u8, u8),
@@ -203,7 +368,7 @@ impl EditHistory {
         self.add_event(event)
     }
 
-    pub fn add_palette_change(&mut self, colors: &[IciColor]) -> Result<(), IndexedImageError> {
+    pub fn add_palette_change(&mut self, colors: &[Color]) -> Result<(), IndexedImageError> {
         if self.edited_images[0].get_palette() == colors {
             return Ok(());
         }
@@ -314,6 +479,19 @@ impl EditHistory {
                     self.edited_images[self.active_frame].set_pixel(*idx, *color_idx)?;
                 }
             }
+            EditEvent::Full(pixels) => {
+                let img = self.edited_images.remove(self.active_frame);
+                self.edited_images.insert(
+                    self.active_frame,
+                    IndexedImage::new(
+                        img.width(),
+                        img.height(),
+                        img.get_palette().to_vec(),
+                        pixels.clone(),
+                    )
+                    .unwrap_or_else(|err| panic!("full event image creation: {err}")),
+                );
+            }
             EditEvent::PaletteChange(colors) => {
                 for image in &mut self.edited_images {
                     image.set_palette(colors)?;
@@ -388,13 +566,8 @@ mod test {
 
     #[test]
     fn init_state() {
-        let original_image = IndexedImage::new(
-            3,
-            3,
-            vec![TRANSPARENT.to_ici(), BLUE.to_ici()],
-            vec![0; 3 * 3],
-        )
-        .unwrap();
+        let original_image =
+            IndexedImage::new(3, 3, vec![TRANSPARENT, BLUE], vec![0; 3 * 3]).unwrap();
         let history = EditHistory::new(vec![original_image.clone()]);
         assert_eq!(history.active_frame, 0);
         assert_eq!(history.events, vec![]);
@@ -406,13 +579,8 @@ mod test {
 
     #[test]
     fn condensing() {
-        let original_image = IndexedImage::new(
-            3,
-            3,
-            vec![TRANSPARENT.to_ici(), BLUE.to_ici()],
-            vec![0; 3 * 3],
-        )
-        .unwrap();
+        let original_image =
+            IndexedImage::new(3, 3, vec![TRANSPARENT, BLUE], vec![0; 3 * 3]).unwrap();
         let mut history = EditHistory::new(vec![original_image]);
         history.add_pencil((0, 0), 1).unwrap();
         assert_eq!(history.events, vec![q_pc(0, 1)]);
@@ -439,13 +607,8 @@ mod test {
 
     #[test]
     fn undo_redo_single_frame() {
-        let original_image = IndexedImage::new(
-            3,
-            3,
-            vec![TRANSPARENT.to_ici(), BLUE.to_ici()],
-            vec![0; 3 * 3],
-        )
-        .unwrap();
+        let original_image =
+            IndexedImage::new(3, 3, vec![TRANSPARENT, BLUE], vec![0; 3 * 3]).unwrap();
         let mut history = EditHistory::new(vec![original_image]);
         assert_eq!(history.get_current_image().get_pixel(0).unwrap(), 0);
         assert_eq!(history.get_current_image().get_pixel(4).unwrap(), 0);
@@ -469,12 +632,7 @@ mod test {
 
     #[test]
     fn remove_first_of_three_frames() {
-        let palette = vec![
-            TRANSPARENT.to_ici(),
-            BLUE.to_ici(),
-            RED.to_ici(),
-            GREEN.to_ici(),
-        ];
+        let palette = vec![TRANSPARENT, BLUE, RED, GREEN];
         let image1 = IndexedImage::new(3, 3, palette.clone(), vec![1; 9]).unwrap();
         let image2 = IndexedImage::new(3, 3, palette.clone(), vec![2; 9]).unwrap();
         let image3 = IndexedImage::new(3, 3, palette, vec![3; 9]).unwrap();
@@ -500,12 +658,7 @@ mod test {
 
     #[test]
     fn remove_second_of_three_frames() {
-        let palette = vec![
-            TRANSPARENT.to_ici(),
-            BLUE.to_ici(),
-            RED.to_ici(),
-            GREEN.to_ici(),
-        ];
+        let palette = vec![TRANSPARENT, BLUE, RED, GREEN];
         let image1 = IndexedImage::new(3, 3, palette.clone(), vec![1; 9]).unwrap();
         let image2 = IndexedImage::new(3, 3, palette.clone(), vec![2; 9]).unwrap();
         let image3 = IndexedImage::new(3, 3, palette, vec![3; 9]).unwrap();
@@ -543,12 +696,7 @@ mod test {
 
     #[test]
     fn remove_third_of_three_frames() {
-        let palette = vec![
-            TRANSPARENT.to_ici(),
-            BLUE.to_ici(),
-            RED.to_ici(),
-            GREEN.to_ici(),
-        ];
+        let palette = vec![TRANSPARENT, BLUE, RED, GREEN];
         let image1 = IndexedImage::new(3, 3, palette.clone(), vec![1; 9]).unwrap();
         let image2 = IndexedImage::new(3, 3, palette.clone(), vec![2; 9]).unwrap();
         let image3 = IndexedImage::new(3, 3, palette, vec![3; 9]).unwrap();
@@ -586,12 +734,7 @@ mod test {
 
     #[test]
     fn add_blank_frame() {
-        let palette = vec![
-            TRANSPARENT.to_ici(),
-            BLUE.to_ici(),
-            RED.to_ici(),
-            GREEN.to_ici(),
-        ];
+        let palette = vec![TRANSPARENT, BLUE, RED, GREEN];
         let image1 = IndexedImage::new(3, 3, palette.clone(), vec![1; 9]).unwrap();
         let image2 = IndexedImage::new(3, 3, palette, vec![0; 9]).unwrap();
         let mut history = EditHistory::new(vec![image1.clone()]);
@@ -606,12 +749,7 @@ mod test {
 
     #[test]
     fn add_duplicate_frame() {
-        let palette = vec![
-            TRANSPARENT.to_ici(),
-            BLUE.to_ici(),
-            RED.to_ici(),
-            GREEN.to_ici(),
-        ];
+        let palette = vec![TRANSPARENT, BLUE, RED, GREEN];
         let image1 = IndexedImage::new(3, 3, palette, vec![1; 9]).unwrap();
         let mut history = EditHistory::new(vec![image1.clone()]);
         history.add_duplicate_frame().unwrap();
@@ -625,20 +763,14 @@ mod test {
 
     #[test]
     fn palette_swap() {
-        let orig_palette = vec![TRANSPARENT.to_ici(), BLUE.to_ici()];
-        let new_palette = vec![TRANSPARENT.to_ici(), RED.to_ici()];
+        let orig_palette = vec![TRANSPARENT, BLUE];
+        let new_palette = vec![TRANSPARENT, RED];
         let image1 = IndexedImage::new(3, 3, orig_palette, vec![1; 9]).unwrap();
         let mut history = EditHistory::new(vec![image1.clone(), image1]);
-        assert_eq!(
-            history.edited_images[0].get_color(1).unwrap(),
-            BLUE.to_ici()
-        );
-        assert_eq!(
-            history.edited_images[1].get_color(1).unwrap(),
-            BLUE.to_ici()
-        );
+        assert_eq!(history.edited_images[0].get_color(1).unwrap(), BLUE);
+        assert_eq!(history.edited_images[1].get_color(1).unwrap(), BLUE);
         history.add_palette_change(&new_palette).unwrap();
-        assert_eq!(history.edited_images[0].get_color(1).unwrap(), RED.to_ici());
-        assert_eq!(history.edited_images[1].get_color(1).unwrap(), RED.to_ici());
+        assert_eq!(history.edited_images[0].get_color(1).unwrap(), RED);
+        assert_eq!(history.edited_images[1].get_color(1).unwrap(), RED);
     }
 }

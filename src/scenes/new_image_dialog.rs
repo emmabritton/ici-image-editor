@@ -1,4 +1,4 @@
-use crate::scenes::new_editor::EditorDetails;
+use crate::scenes::editor::EditorDetails;
 use crate::SceneName::Editor;
 use crate::SceneUpdateResult::*;
 use crate::{Scene, SceneName, SceneResult, SUR};
@@ -37,12 +37,12 @@ impl NewImageDialog {
         let width_label = Text::new(
             "Width (1..=64)",
             TextPos::px(style.dialog.bounds.top_left() + (8, 8)),
-            (WHITE, TextSize::Normal),
+            (WHITE, PixelFont::Standard6x7),
         );
         let mut width_field = TextField::new(
             style.dialog.bounds.top_left() + (8, 18),
             6,
-            TextSize::Normal,
+            PixelFont::Standard6x7,
             (None, None),
             "",
             &[Numbers],
@@ -51,12 +51,12 @@ impl NewImageDialog {
         let height_label = Text::new(
             "Height (1..=64)",
             TextPos::px(style.dialog.bounds.top_left() + (8, 40)),
-            (WHITE, TextSize::Normal),
+            (WHITE, PixelFont::Standard6x7),
         );
         let height_field = TextField::new(
             style.dialog.bounds.top_left() + (8, 50),
             6,
-            TextSize::Normal,
+            PixelFont::Standard6x7,
             (None, None),
             "",
             &[Numbers],
@@ -143,7 +143,7 @@ impl NewImageDialog {
         let label = Text::new(
             "Quick create",
             TextPos::px(style.dialog.bounds.top_left() + (8, 68)),
-            (WHITE, TextSize::Normal),
+            (WHITE, PixelFont::Standard6x7),
         );
         let alert = Alert::new_warning(&[""], width, height, &style.alert);
         width_field.focus();

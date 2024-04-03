@@ -12,7 +12,7 @@ pub struct Timeline {
     selected: usize,
     frame_size: (usize, usize),
     background: Color,
-    state: ElementState,
+    state: ViewState,
 }
 
 impl Timeline {
@@ -24,14 +24,14 @@ impl Timeline {
             selected: 0,
             frame_size: (0, 0),
             background: WHITE,
-            state: ElementState::Normal,
+            state: ViewState::Normal,
         }
     }
 }
 
 impl Timeline {
     pub fn on_mouse_click(&mut self, mouse_xy: Coord) -> Option<usize> {
-        if self.bounds.contains(mouse_xy) && self.state == ElementState::Normal {
+        if self.bounds.contains(mouse_xy) && self.state == ViewState::Normal {
             let x = mouse_xy.x - self.bounds.left() + self.offset as isize - 2;
             let selected = (x / (self.frame_size.0 as isize + 2)) as usize;
             if selected < self.frames.len() {
@@ -46,7 +46,7 @@ impl Timeline {
     }
 
     pub fn on_scroll(&mut self, mouse_xy: Coord, x_diff: isize) {
-        if self.bounds.contains(mouse_xy) && self.state == ElementState::Normal {
+        if self.bounds.contains(mouse_xy) && self.state == ViewState::Normal {
             let max_visible_count = self.bounds.width() / (self.frame_size.0 + 2);
             let last_frame = self.frames.len() as isize - max_visible_count as isize + 2;
             let maximum = self.frame_size.0 as isize * last_frame.max(0);
@@ -103,7 +103,7 @@ impl Timeline {
     }
 }
 
-impl UiElement for Timeline {
+impl PixelView for Timeline {
     fn set_position(&mut self, _top_left: Coord) {
         unimplemented!("Does not support moving")
     }
@@ -146,11 +146,11 @@ impl UiElement for Timeline {
 
     fn update(&mut self, _: &Timing) {}
 
-    fn set_state(&mut self, state: ElementState) {
+    fn set_state(&mut self, state: ViewState) {
         self.state = state;
     }
 
-    fn get_state(&self) -> ElementState {
+    fn get_state(&self) -> ViewState {
         self.state
     }
 }

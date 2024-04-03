@@ -2,8 +2,9 @@ mod palettes;
 mod scenes;
 mod ui;
 
+use crate::scenes::editor;
+use crate::scenes::editor::{Editor, EditorDetails};
 use crate::scenes::menu::Menu;
-use crate::scenes::new_editor::{Editor, EditorDetails};
 use crate::scenes::new_image_dialog::NewImageDialog;
 use crate::scenes::palette_dialog::PaletteDialog;
 use crate::scenes::save_palette_dialog::SavePaletteDataDialog;
@@ -53,14 +54,17 @@ fn main() -> Result<()> {
     color_eyre::install()?;
 
     let switcher: SceneSwitcher<SceneResult, SceneName> = |style, list, name| match name {
-        SceneName::Editor(details) => list.push(Editor::new(
-            WIDTH,
-            HEIGHT,
-            details,
-            settings(),
-            load_default_palette(),
-            style,
-        )),
+        SceneName::Editor(details) => {
+            list.retain(|s| s.id() != editor::ID);
+            list.push(Editor::new(
+                WIDTH,
+                HEIGHT,
+                details,
+                settings(),
+                load_default_palette(),
+                style,
+            ))
+        }
         SceneName::NewImage => list.push(NewImageDialog::new(WIDTH, HEIGHT, style)),
         SceneName::Palette(colors, selected) => list.push(PaletteDialog::new(
             colors,
@@ -91,7 +95,7 @@ fn main() -> Result<()> {
         switcher,
         Menu::new(settings(), load_default_palette(), &options.style.button),
         options,
-        empty_pre_post()
+        empty_pre_post(),
     )?;
     Ok(())
 }
@@ -99,7 +103,7 @@ fn main() -> Result<()> {
 enum DefaultPalette {
     NoPalette,
     Error(String),
-    Palette(String, Vec<IciColor>),
+    Palette(String, Vec<Color>),
 }
 
 fn load_default_palette() -> DefaultPalette {

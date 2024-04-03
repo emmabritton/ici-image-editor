@@ -1,5 +1,10 @@
 # Changelog
 
+### Version 0.6.0
+- Update deps
+- Move most buttons to a menubar
+- Add image rotation, flipping and shifting
+
 ### Version 0.5.0
 - Update deps
 

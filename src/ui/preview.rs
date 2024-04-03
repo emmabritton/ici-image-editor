@@ -17,7 +17,7 @@ impl Preview {
     pub fn new(bounds: Rect) -> Self {
         Self {
             bounds,
-            image: IndexedImage::new(4, 4, vec![IciColor::transparent()], vec![0; 16]).unwrap(),
+            image: IndexedImage::new(4, 4, vec![TRANSPARENT], vec![0; 16]).unwrap(),
             background: 0,
         }
     }
@@ -50,9 +50,9 @@ impl Preview {
     }
 }
 
-impl UiElement for Preview {
-    fn set_position(&mut self, _top_left: Coord) {
-        unimplemented!("Does not support moving")
+impl PixelView for Preview {
+    fn set_position(&mut self, top_left: Coord) {
+        self.bounds = self.bounds.move_to(top_left);
     }
 
     fn bounds(&self) -> &Rect {
@@ -88,11 +88,11 @@ impl UiElement for Preview {
 
     fn update(&mut self, _: &Timing) {}
 
-    fn set_state(&mut self, _: ElementState) {
+    fn set_state(&mut self, _: ViewState) {
         unimplemented!("Preview is always normal")
     }
 
-    fn get_state(&self) -> ElementState {
-        ElementState::Normal
+    fn get_state(&self) -> ViewState {
+        ViewState::Normal
     }
 }

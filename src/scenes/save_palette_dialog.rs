@@ -4,7 +4,6 @@ use log::warn;
 use pixels_graphics_lib::buffer_graphics_lib::prelude::Positioning::CenterTop;
 use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
 use pixels_graphics_lib::prelude::SceneUpdateResult::*;
-use pixels_graphics_lib::prelude::TextSize::Small;
 use pixels_graphics_lib::prelude::*;
 use pixels_graphics_lib::ui::prelude::*;
 
@@ -47,7 +46,7 @@ impl SavePaletteDataDialog {
         let title = Text::new(
             "Palette data?",
             TextPos::px(dialog_pos + (style.bounds.width() / 2, 8)),
-            (style.text, TextSize::Normal, CenterTop),
+            (style.text, PixelFont::Standard6x7, CenterTop),
         );
         let save_no_data = Button::new(
             dialog_pos + (16, 25),
@@ -64,7 +63,7 @@ impl SavePaletteDataDialog {
         let mut id = TextField::new(
             dialog_pos + (108, 53),
             5,
-            TextSize::Normal,
+            PixelFont::Standard6x7,
             (None, None),
             "",
             &[TextFilter::Numbers],
@@ -79,7 +78,7 @@ impl SavePaletteDataDialog {
         let mut name = TextField::new(
             dialog_pos + (16, 96),
             35,
-            TextSize::Small,
+            PixelFont::Standard4x5,
             (None, None),
             "",
             &[TextFilter::All],
@@ -95,7 +94,7 @@ impl SavePaletteDataDialog {
         let default_text = Text::new(
             "Use by default",
             TextPos::px(dialog_pos + (27, 134)),
-            (WHITE, Small),
+            (WHITE, PixelFont::Standard4x5),
         );
         let cancel = Button::new(
             dialog_pos + (55, 146),

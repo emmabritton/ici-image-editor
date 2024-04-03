@@ -127,7 +127,7 @@ impl PaletteDialog {
         let red = TextField::new(
             dialog_pos + (70, 94),
             3,
-            TextSize::Normal,
+            PixelFont::Standard6x7,
             (None, None),
             "",
             &[Numbers],
@@ -136,7 +136,7 @@ impl PaletteDialog {
         let green = TextField::new(
             dialog_pos + (70, 106),
             3,
-            TextSize::Normal,
+            PixelFont::Standard6x7,
             (None, None),
             "",
             &[Numbers],
@@ -145,7 +145,7 @@ impl PaletteDialog {
         let blue = TextField::new(
             dialog_pos + (70, 118),
             3,
-            TextSize::Normal,
+            PixelFont::Standard6x7,
             (None, None),
             "",
             &[Numbers],
@@ -154,7 +154,7 @@ impl PaletteDialog {
         let alpha = TextField::new(
             dialog_pos + (70, 130),
             3,
-            TextSize::Normal,
+            PixelFont::Standard6x7,
             (None, None),
             "",
             &[Numbers],
@@ -195,12 +195,12 @@ impl PaletteDialog {
         Box::new(dialog)
     }
 
-    fn reset_colors(&mut self, colors: &[IciColor]) {
+    fn reset_colors(&mut self, colors: &[Color]) {
         if colors.is_empty() {
             return;
         }
         self.colors.clear();
-        self.colors = colors.iter().map(|c| c.to_color()).collect();
+        self.colors = colors.to_vec();
         self.selected_color = 0;
         self.update_selected_color_display();
     }
@@ -215,8 +215,7 @@ impl PaletteDialog {
 
     fn save_palette(&mut self) {
         if let Some(path) = &self.file_path {
-            let output = JascPalette::new(self.colors.iter().map(|c| c.to_ici()).collect())
-                .to_file_contents();
+            let output = JascPalette::new(self.colors.clone()).to_file_contents();
             fs::write(path, output).expect("Writing palette to disk");
         }
     }
@@ -225,7 +224,7 @@ impl PaletteDialog {
         if let Some(path) = &self.file_path {
             let input = fs::read_to_string(path).expect("Reading palette from disk");
             let palette = JascPalette::from_file_contents(&input).expect("Decoding palette");
-            self.colors = palette.colors.iter().map(|c| c.to_color()).collect();
+            self.colors = palette.colors;
         }
     }
 }
@@ -275,22 +274,22 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
         graphics.draw_text(
             "R",
             TextPos::px(self.dialog_pos + (60, 96)),
-            (WHITE, TextSize::Normal),
+            (WHITE, PixelFont::Standard6x7),
         );
         graphics.draw_text(
             "G",
             TextPos::px(self.dialog_pos + (60, 108)),
-            (WHITE, TextSize::Normal),
+            (WHITE, PixelFont::Standard6x7),
         );
         graphics.draw_text(
             "B",
             TextPos::px(self.dialog_pos + (60, 120)),
-            (WHITE, TextSize::Normal),
+            (WHITE, PixelFont::Standard6x7),
         );
         graphics.draw_text(
             "A",
             TextPos::px(self.dialog_pos + (60, 132)),
-            (WHITE, TextSize::Normal),
+            (WHITE, PixelFont::Standard6x7),
         );
 
         let mut y = 0;

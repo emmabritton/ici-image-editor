@@ -44,14 +44,14 @@ jobs:
           - x86_64-unknown-linux-gnu
         include:
           - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
-            name: games-linux.tar.gz
+            os: ubuntu_latest
+            name: games_linux.tar.gz
           - target: x86_64-apple-darwin
-            os: macOS-latest
-            name: games-mac.tar.gz
+            os: macOS_latest
+            name: games_mac.tar.gz
           - target: x86_64-pc-windows-msvc
-            os: windows-latest
-            name: games-windows.zip
+            os: windows_latest
+            name: games_windows.zip
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -60,25 +60,25 @@ jobs:
           components: clippy, rustfmt
 
       - name: Install linux deps
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu_latest'
         run: sudo apt-get update; sudo apt-get install --no-install-recommends pkg-config build-essential gcc-multilib libudev-dev libgtk-3-dev
 
       - name: build
         run: cargo build --release --target ${{ matrix.target }}
 
       - name: Prepare build artifacts [Windows]
-        if: matrix.os == 'windows-latest'
+        if: matrix.os == 'windows_latest'
         run: |
           cd target/${{ matrix.target }}/release
-          strip image-editor.exe
-          7z a ../../../${{ matrix.name }} image-editor.exe
+          strip image_editor.exe
+          7z a ../../../${{ matrix.name }} image_editor.exe
           cd -
       - name: Prepare build artifacts [-nix]
-        if: matrix.os != 'windows-latest'
+        if: matrix.os != 'windows_latest'
         run: |
           cd target/${{ matrix.target }}/release
-          strip image-editor
-          tar cvf ../../../${{ matrix.name }} image-editor
+          strip image_editor
+          tar cvf ../../../${{ matrix.name }} image_editor
           cd -
       - uses: softprops/action-gh-release@v1
         with:

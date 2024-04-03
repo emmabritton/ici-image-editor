@@ -6,7 +6,7 @@ Used to edit ICI images (`IndexedImage` and `AnimatedIndexedImage`) from [ici-fi
 
 Open the program normally
 
-or set a default palette for new images with
+or set a default palette for all new images for this session with
 `./image-editor /path/to/palette`
 
 ## Controls
@@ -14,6 +14,8 @@ or set a default palette for new images with
 * Undo - Ctrl+Z, Cmd+Z
 * Redo - Shift+Ctrl+Z, Shift+Cmd+Z, Ctrl+Y, Cmd+Y
 * Save single frame when timeline is visible - Hold Shift when saving
+
+* Shift by 1px - Shift+Up/Down/Left/Right
 
 ## Screenshots
 
@@ -23,9 +25,5 @@ or set a default palette for new images with
 ![Palette editor](https://github.com/emmabritton/ici-image-editor/raw/main/.github/screenshots/palette.png)
 
 ## TODO
-- Support images bigger than 64x64
-- New palette system
-- Confirmation before clear/close
-- Animation
-- Canvas scrolling
-- Support play type
+- Images larger than 64px
+- Canvas scrolling/zoom

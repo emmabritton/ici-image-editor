@@ -22,7 +22,7 @@ pub struct Canvas {
     selected_color_idx: u8,
     tool: Tool,
     first_click_at: Option<(u8, u8)>,
-    state: ElementState,
+    state: ViewState,
 }
 
 impl Canvas {
@@ -30,14 +30,14 @@ impl Canvas {
         Self {
             bounds: Rect::new_with_size(xy, width, height),
             inner_bounds: Rect::new_with_size(xy, 0, 0),
-            image: IndexedImage::new(1, 1, vec![IciColor::transparent()], vec![0]).unwrap(),
+            image: IndexedImage::new(1, 1, vec![TRANSPARENT], vec![0]).unwrap(),
             screen_px_per_image_px: 1,
             trans_background_colors: (LIGHT_GRAY, DARK_GRAY),
             cursor_color: RED,
             selected_color_idx: 1,
             tool: Tool::Pencil,
             first_click_at: None,
-            state: ElementState::Normal,
+            state: ViewState::Normal,
         }
     }
 }
@@ -70,7 +70,7 @@ impl Canvas {
     }
 
     pub fn on_mouse_down(&mut self, mouse_xy: Coord, edit_history: &mut EditHistory) -> bool {
-        if self.inner_bounds.contains(mouse_xy) && self.state == ElementState::Normal {
+        if self.inner_bounds.contains(mouse_xy) && self.state == ViewState::Normal {
             let (x, y) = self.mouse_to_image(mouse_xy);
             if self.tool == Tool::Pencil {
                 edit_history
@@ -85,7 +85,7 @@ impl Canvas {
     }
 
     pub fn on_mouse_up(&mut self, mouse_xy: Coord, edit_history: &mut EditHistory) {
-        if self.inner_bounds.contains(mouse_xy) && self.state == ElementState::Normal {
+        if self.inner_bounds.contains(mouse_xy) && self.state == ViewState::Normal {
             let (x, y) = self.mouse_to_image(mouse_xy);
             let result = match (self.tool, self.first_click_at) {
                 (Tool::Line, Some(start)) => {
@@ -116,7 +116,7 @@ impl Canvas {
 
     pub fn set_color_index(&mut self, idx: u8) {
         if let Ok(color) = self.image.get_color(idx) {
-            self.cursor_color = color.to_color();
+            self.cursor_color = color;
             self.selected_color_idx = idx;
         }
     }
@@ -133,7 +133,7 @@ impl Canvas {
         self.tool = tool;
     }
 
-    pub fn get_palette(&self) -> &[IciColor] {
+    pub fn get_palette(&self) -> &[Color] {
         self.image.get_palette()
     }
 
@@ -216,14 +216,14 @@ impl Canvas {
             }
         } else {
             match self.screen_px_per_image_px {
-                1 => graphics.set_pixel(scr_x, scr_y, color.to_color()),
+                1 => graphics.set_pixel(scr_x, scr_y, color),
                 _ => graphics.draw_rect(
                     Rect::new_with_size(
                         (scr_x, scr_y),
                         self.screen_px_per_image_px - 1,
                         self.screen_px_per_image_px - 1,
                     ),
-                    fill(color.to_color()),
+                    fill(color),
                 ),
             }
         }
@@ -255,7 +255,7 @@ impl Canvas {
     }
 }
 
-impl UiElement for Canvas {
+impl PixelView for Canvas {
     fn set_position(&mut self, _top_left: Coord) {
         unimplemented!("Does not support moving")
     }
@@ -287,7 +287,7 @@ impl UiElement for Canvas {
         }
 
         graphics.set_translate(orig_trans);
-        if self.inner_bounds.contains(mouse.xy) && self.state == ElementState::Normal {
+        if self.inner_bounds.contains(mouse.xy) && self.state == ViewState::Normal {
             match (self.tool, self.first_click_at) {
                 (Tool::Line, Some(start)) => self.temp_line(graphics, start, mouse.xy),
                 (Tool::Rect, Some(start)) => self.temp_rect(graphics, start, mouse.xy),
@@ -298,11 +298,11 @@ impl UiElement for Canvas {
 
     fn update(&mut self, _: &Timing) {}
 
-    fn set_state(&mut self, state: ElementState) {
+    fn set_state(&mut self, state: ViewState) {
         self.state = state;
     }
 
-    fn get_state(&self) -> ElementState {
+    fn get_state(&self) -> ViewState {
         self.state
     }
 }

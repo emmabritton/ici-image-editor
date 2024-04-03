@@ -9,28 +9,28 @@ const PER_SQUARE: usize = SPACING + SQUARE_SIZE;
 #[derive(Debug)]
 pub struct PaletteView {
     bounds: Rect,
-    colors: Vec<IciColor>,
+    colors: Vec<Color>,
     selected: u8,
     cols: usize,
     offset: isize,
-    state: ElementState,
+    state: ViewState,
 }
 
 impl PaletteView {
     pub fn new(xy: Coord, (width, height): (usize, usize)) -> Self {
         Self {
             bounds: Rect::new_with_size(xy, width, height),
-            colors: vec![IciColor::transparent()],
+            colors: vec![TRANSPARENT],
             selected: 0,
             cols: 0,
             offset: 0,
-            state: ElementState::Normal,
+            state: ViewState::Normal,
         }
     }
 }
 
 impl PaletteView {
-    pub fn set_palette(&mut self, new_colors: &[IciColor]) {
+    pub fn set_palette(&mut self, new_colors: &[Color]) {
         self.colors = new_colors.to_vec();
         self.cols = (self.bounds.width() / PER_SQUARE) + 1;
     }
@@ -44,7 +44,7 @@ impl PaletteView {
     }
 
     pub fn on_mouse_click(&mut self, mouse_xy: Coord) -> bool {
-        if self.bounds.contains(mouse_xy) && self.state == ElementState::Normal {
+        if self.bounds.contains(mouse_xy) && self.state == ViewState::Normal {
             let xy = mouse_xy - self.bounds.top_left();
             let x = xy.x / PER_SQUARE as isize;
             let y = (xy.y + self.offset) / PER_SQUARE as isize;
@@ -58,16 +58,16 @@ impl PaletteView {
     }
 
     pub fn on_scroll(&mut self, xy: Coord, y_diff: isize) {
-        if self.bounds.contains(xy) && self.state == ElementState::Normal {
+        if self.bounds.contains(xy) && self.state == ViewState::Normal {
             self.offset += y_diff;
             self.offset = self.offset.clamp(0, 100);
         }
     }
 }
 
-impl UiElement for PaletteView {
-    fn set_position(&mut self, _top_left: Coord) {
-        unimplemented!("Does not support moving")
+impl PixelView for PaletteView {
+    fn set_position(&mut self, top_left: Coord) {
+        self.bounds = self.bounds.move_to(top_left);
     }
 
     fn bounds(&self) -> &Rect {
@@ -91,7 +91,7 @@ impl UiElement for PaletteView {
             } else {
                 graphics.draw_rect(
                     Rect::new_with_size(top_left, SQUARE_SIZE, SQUARE_SIZE),
-                    fill(color.to_color()),
+                    fill(*color),
                 );
             }
 
@@ -114,11 +114,11 @@ impl UiElement for PaletteView {
 
     fn update(&mut self, _: &Timing) {}
 
-    fn set_state(&mut self, state: ElementState) {
+    fn set_state(&mut self, state: ViewState) {
         self.state = state;
     }
 
-    fn get_state(&self) -> ElementState {
+    fn get_state(&self) -> ViewState {
         self.state
     }
 }
