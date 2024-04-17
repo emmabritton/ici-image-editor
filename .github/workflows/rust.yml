@@ -74,7 +74,7 @@ jobs:
           7z a ../../../${{ matrix.name }} image-editor.exe
           cd -
       - name: Prepare build artifacts [-nix]
-        if: matrix.os != 'windows_latest'
+        if: matrix.os != 'windows-latest'
         run: |
           cd target/${{ matrix.target }}/release
           strip image-editor
