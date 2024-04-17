@@ -10,7 +10,7 @@ pub enum Tool {
     Rect,
     Fill,
     Circle,
-    Ellipse
+    Ellipse,
 }
 
 #[derive(Debug)]
@@ -25,7 +25,7 @@ pub struct Canvas {
     tool: Tool,
     first_click_at: Option<(u8, u8)>,
     state: ViewState,
-    shift_pressed: bool
+    shift_pressed: bool,
 }
 
 impl Canvas {
@@ -41,7 +41,7 @@ impl Canvas {
             tool: Tool::Pencil,
             first_click_at: None,
             state: ViewState::Normal,
-            shift_pressed: false
+            shift_pressed: false,
         }
     }
 }
@@ -99,8 +99,18 @@ impl Canvas {
                     edit_history.add_rect(start, (x, y), self.selected_color_idx)
                 }
                 (Tool::Fill, Some(start)) => edit_history.add_fill(start, self.selected_color_idx),
-                (Tool::Ellipse, Some(start)) => edit_history.add_ellipse(start, (x,y), self.shift_pressed, self.selected_color_idx),
-                (Tool::Circle, Some(start)) => edit_history.add_circle(start, (x,y), self.shift_pressed, self.selected_color_idx),
+                (Tool::Ellipse, Some(start)) => edit_history.add_ellipse(
+                    start,
+                    (x, y),
+                    self.shift_pressed,
+                    self.selected_color_idx,
+                ),
+                (Tool::Circle, Some(start)) => edit_history.add_circle(
+                    start,
+                    (x, y),
+                    self.shift_pressed,
+                    self.selected_color_idx,
+                ),
                 _ => Ok(()),
             };
             if let Err(e) = result {
@@ -262,23 +272,39 @@ impl Canvas {
         }
     }
 
-    fn temp_circle(&self, graphics: &mut Graphics, start: (u8, u8), mouse_xy: Coord, shift_pressed: bool) {
+    fn temp_circle(
+        &self,
+        graphics: &mut Graphics,
+        start: (u8, u8),
+        mouse_xy: Coord,
+        shift_pressed: bool,
+    ) {
         let circle = if shift_pressed {
             Circle::new(start, coord!(start).distance(self.mouse_to_image(mouse_xy)))
         } else {
-            Rect::new(coord!(start),self.mouse_to_image(mouse_xy)).as_inner_circle()
+            Rect::new(coord!(start), self.mouse_to_image(mouse_xy)).as_inner_circle()
         };
         for px in circle.outline_pixels() {
             self.draw_cursor_on_image(graphics, (px.x as u8, px.y as u8));
         }
     }
 
-    fn temp_ellipse(&self, graphics: &mut Graphics, start: (u8, u8), mouse_xy: Coord, shift_pressed: bool) {
+    fn temp_ellipse(
+        &self,
+        graphics: &mut Graphics,
+        start: (u8, u8),
+        mouse_xy: Coord,
+        shift_pressed: bool,
+    ) {
         let end = self.mouse_to_image(mouse_xy);
         let ellipse = if shift_pressed {
-            Ellipse::new(start, start.0.abs_diff(end.0) as usize/2,start.1.abs_diff(end.1) as usize/2)
+            Ellipse::new(
+                start,
+                start.0.abs_diff(end.0) as usize / 2,
+                start.1.abs_diff(end.1) as usize / 2,
+            )
         } else {
-            Rect::new(coord!(start),self.mouse_to_image(mouse_xy)).as_outer_ellipse()
+            Rect::new(coord!(start), self.mouse_to_image(mouse_xy)).as_outer_ellipse()
         };
         for px in ellipse.outline_pixels() {
             self.draw_cursor_on_image(graphics, (px.x as u8, px.y as u8));
@@ -322,8 +348,12 @@ impl PixelView for Canvas {
             match (self.tool, self.first_click_at) {
                 (Tool::Line, Some(start)) => self.temp_line(graphics, start, mouse.xy),
                 (Tool::Rect, Some(start)) => self.temp_rect(graphics, start, mouse.xy),
-                (Tool::Circle, Some(start)) => self.temp_circle(graphics, start, mouse.xy, self.shift_pressed),
-                (Tool::Ellipse, Some(start)) => self.temp_ellipse(graphics, start, mouse.xy, self.shift_pressed),
+                (Tool::Circle, Some(start)) => {
+                    self.temp_circle(graphics, start, mouse.xy, self.shift_pressed)
+                }
+                (Tool::Ellipse, Some(start)) => {
+                    self.temp_ellipse(graphics, start, mouse.xy, self.shift_pressed)
+                }
                 _ => self.draw_mouse_highlight(graphics, mouse.xy),
             }
         }

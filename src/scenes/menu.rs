@@ -37,7 +37,13 @@ impl Menu {
         let mut new_button = Button::new((0, 0), "New image", Some(86), &style.button);
         let mut load_button = Button::new((0, 0), "Load ICI", Some(86), &style.button);
         let mut import_button = Button::new((0, 0), "Import", Some(86), &style.button);
-        let mut format_label = Label::singleline("PNG, BMP, JPG & TGA", (0,0), WHITE, PixelFont::Limited3x5, WIDTH);
+        let mut format_label = Label::singleline(
+            "PNG, BMP, JPG & TGA",
+            (0, 0),
+            WHITE,
+            PixelFont::Limited3x5,
+            WIDTH,
+        );
 
         let context = LayoutContext::new(Rect::new_with_size((0, 0), WIDTH, HEIGHT));
 

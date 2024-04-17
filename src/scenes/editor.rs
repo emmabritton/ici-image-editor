@@ -511,7 +511,7 @@ impl Editor {
                 self.prefs.data.last_used_dir.clone(),
                 self.save_data.filters(),
             )
-                .save_file()
+            .save_file()
             {
                 self.save_data.path = Some(path.clone());
                 self.filename.update_text(&self.save_data.filename());
@@ -554,7 +554,7 @@ impl Editor {
                         pixels,
                         PlayType::Loops,
                     )
-                        .unwrap();
+                    .unwrap();
                     let bytes = image
                         .to_file_contents(palette)
                         .expect("Unable to save ica file (converting)");
@@ -647,7 +647,7 @@ impl Editor {
             self.prefs.data.last_used_dir.clone(),
             &[("IndexedImage", "ici"), ("AnimatedIndexedImage", "ica")],
         )
-            .pick_file()
+        .pick_file()
         {
             self.result = Push(false, SceneName::Editor(EditorDetails::Open(path)));
         }
@@ -729,7 +729,7 @@ impl Editor {
             self.prefs.data.last_used_dir.clone(),
             &[(image_format_name(format), format.extensions_str()[0])],
         )
-            .save_file()
+        .save_file()
         {
             let image = Image::from_indexed(self.history.get_current_image());
             if image.is_transparent() && format == ImageFormat::Jpeg {
@@ -948,9 +948,9 @@ impl Scene<SceneResult, SceneName> for Editor {
                 && !held.contains(&KeyCode::ShiftLeft)
                 && !held.contains(&KeyCode::ShiftRight)
                 && (held.contains(&KeyCode::ControlLeft)
-                || held.contains(&KeyCode::SuperLeft)
-                || held.contains(&KeyCode::ControlRight)
-                || held.contains(&KeyCode::SuperRight))
+                    || held.contains(&KeyCode::SuperLeft)
+                    || held.contains(&KeyCode::ControlRight)
+                    || held.contains(&KeyCode::SuperRight))
             {
                 self.undo();
             }
@@ -958,9 +958,9 @@ impl Scene<SceneResult, SceneName> for Editor {
                 && (held.contains(&KeyCode::ShiftLeft) || held.contains(&KeyCode::ShiftRight)))
                 || key == KeyCode::KeyY)
                 && (held.contains(&KeyCode::ControlLeft)
-                || held.contains(&KeyCode::SuperLeft)
-                || held.contains(&KeyCode::ControlRight)
-                || held.contains(&KeyCode::SuperRight))
+                    || held.contains(&KeyCode::SuperLeft)
+                    || held.contains(&KeyCode::ControlRight)
+                    || held.contains(&KeyCode::SuperRight))
             {
                 self.redo();
             }
@@ -1358,7 +1358,9 @@ impl Scene<SceneResult, SceneName> for Editor {
     ) -> SceneUpdateResult<SceneResult, SceneName> {
         self.speed.update(timing);
 
-        self.canvas.set_shift_pressed(held.contains(&KeyCode::ShiftLeft) || held.contains(&KeyCode::ShiftRight));
+        self.canvas.set_shift_pressed(
+            held.contains(&KeyCode::ShiftLeft) || held.contains(&KeyCode::ShiftRight),
+        );
 
         if self.is_playing {
             self.next_frame_swap -= timing.fixed_time_step;
@@ -1458,9 +1460,9 @@ impl Scene<SceneResult, SceneName> for Editor {
                 SceneResult::Palette(colors, selected) => {
                     if colors.len()
                         <= self
-                        .history
-                        .get_current_image()
-                        .min_palette_size_supported() as usize
+                            .history
+                            .get_current_image()
+                            .min_palette_size_supported() as usize
                     {
                         self.one_way_pending_alert =
                             Some(OneWayAlertAction::ChangePalette(colors, selected));

@@ -308,14 +308,15 @@ impl EditHistory {
     ) -> Result<(), IndexedImageError> {
         let points = if shift_held {
             Circle::new(start, coord!(start).distance(end)).outline_pixels()
-        } else{
+        } else {
             Rect::new(start, end).as_inner_circle().outline_pixels()
         };
 
         let mut pixels = vec![];
         for point in points {
-            if let Ok(i) = self.edited_images[self.active_frame]
-                .get_pixel_index(point.x as u8, point.y as u8) {
+            if let Ok(i) =
+                self.edited_images[self.active_frame].get_pixel_index(point.x as u8, point.y as u8)
+            {
                 pixels.push(i);
             }
         }
@@ -334,15 +335,21 @@ impl EditHistory {
         color: u8,
     ) -> Result<(), IndexedImageError> {
         let points = if shift_held {
-            Ellipse::new(start, start.0.abs_diff(end.0) as usize/2, start.1.abs_diff(end.1) as usize/2).outline_pixels()
-        } else{
+            Ellipse::new(
+                start,
+                start.0.abs_diff(end.0) as usize / 2,
+                start.1.abs_diff(end.1) as usize / 2,
+            )
+            .outline_pixels()
+        } else {
             Rect::new(start, end).as_outer_ellipse().outline_pixels()
         };
 
         let mut pixels = vec![];
         for point in points {
-            if let Ok(i) = self.edited_images[self.active_frame]
-                .get_pixel_index(point.x as u8, point.y as u8) {
+            if let Ok(i) =
+                self.edited_images[self.active_frame].get_pixel_index(point.x as u8, point.y as u8)
+            {
                 pixels.push(i);
             }
         }
