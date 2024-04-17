@@ -55,10 +55,10 @@ impl PaletteDialog {
         height: usize,
         selected: usize,
         prefs: AppPrefs<Settings>,
-        style: &DialogStyle,
+        style: &UiStyle,
     ) -> Box<Self> {
-        let dialog_pos = style.bounds.top_left();
-        let background = dialog_background(width, height, style);
+        let dialog_pos = style.dialog.bounds.top_left();
+        let background = dialog_background(width, height, &style.dialog);
         let button_start_pos = dialog_pos + (4, 4);
         let button_offset_x = 64_isize;
         let button_offset_y = 20_isize;
@@ -230,7 +230,7 @@ impl PaletteDialog {
 }
 
 impl Scene<SceneResult, SceneName> for PaletteDialog {
-    fn render(&self, graphics: &mut Graphics, mouse: &MouseData, _: &[KeyCode]) {
+    fn render(&self, graphics: &mut Graphics, mouse: &MouseData, _: &FxHashSet<KeyCode>) {
         self.background.render(graphics);
         self.dos.render(graphics, mouse);
         self.gb.render(graphics, mouse);
@@ -321,7 +321,7 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
         }
     }
 
-    fn on_key_up(&mut self, key: KeyCode, _: &MouseData, held: &[KeyCode]) {
+    fn on_key_up(&mut self, key: KeyCode, _: &MouseData, held: &FxHashSet<KeyCode>) {
         self.red.on_key_press(key, held);
         self.green.on_key_press(key, held);
         self.blue.on_key_press(key, held);
@@ -331,6 +331,30 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
         let b = u8::from_str(self.blue.content()).unwrap_or_default();
         let a = u8::from_str(self.alpha.content()).unwrap_or_default();
         self.current_color = Color { r, g, b, a };
+        let shift_down = held.contains(&KeyCode::ShiftLeft) || held.contains(&KeyCode::ShiftRight);
+        let tab_down = key == KeyCode::Tab;
+        if tab_down && self.red.is_focused() {
+            self.red.unfocus();
+            if shift_down {
+                self.blue.focus();
+            } else {
+                self.green.focus();
+            }
+        } else if tab_down && self.green.is_focused() {
+            self.green.unfocus();
+            if shift_down {
+                self.red.focus();
+            } else {
+                self.blue.focus();
+            }
+        } else if tab_down && self.blue.is_focused() {
+            self.blue.unfocus();
+            if shift_down {
+                self.green.focus();
+            } else {
+                self.red.focus();
+            }
+        }
     }
 
     fn on_mouse_click(
@@ -338,7 +362,7 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
         down_at: Coord,
         mouse: &MouseData,
         button: MouseButton,
-        _: &[KeyCode],
+        _: &FxHashSet<KeyCode>,
     ) {
         if button != MouseButton::Left {
             return;
@@ -427,7 +451,7 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
         }
     }
 
-    fn update(&mut self, timing: &Timing, _: &MouseData, _: &[KeyCode]) -> SUR {
+    fn update(&mut self, timing: &Timing, _: &MouseData, _: &FxHashSet<KeyCode>) -> SUR {
         self.red.update(timing);
         self.green.update(timing);
         self.blue.update(timing);

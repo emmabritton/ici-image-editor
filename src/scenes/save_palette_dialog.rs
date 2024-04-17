@@ -1,10 +1,10 @@
 use crate::SceneResult::SavePaletteData;
 use crate::{SceneName, SceneResult, Settings, SUR};
 use log::warn;
-use pixels_graphics_lib::buffer_graphics_lib::prelude::Positioning::CenterTop;
-use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
+use pixels_graphics_lib::prelude::Positioning::CenterTop;
 use pixels_graphics_lib::prelude::SceneUpdateResult::*;
 use pixels_graphics_lib::prelude::*;
+use pixels_graphics_lib::render;
 use pixels_graphics_lib::ui::prelude::*;
 
 const WARN_ID: &[&str] = &["ID must be between", "0 and 65535"];
@@ -22,12 +22,10 @@ pub struct SavePaletteDataDialog {
     name: TextField,
     alert: Alert,
     settings: AppPrefs<Settings>,
-    default_checkbox: Rect,
-    default_text: Text,
+    default_checkbox: Checkbox,
     title: Text,
     show_alert: bool,
     indicator: Option<Coord>,
-    check: IndexedImage,
 }
 
 impl SavePaletteDataDialog {
@@ -36,12 +34,12 @@ impl SavePaletteDataDialog {
         height: usize,
         pal: Option<FilePalette>,
         settings: AppPrefs<Settings>,
-        alert_style: &AlertStyle,
-        style: &DialogStyle,
+        ui_style: &UiStyle,
     ) -> Box<Self> {
+        let style = &ui_style.dialog;
         let dialog_pos = style.bounds.top_left();
         let background = dialog_background(width, height, style);
-        let alert = Alert::new_warning(&[""], width, height, alert_style);
+        let alert = Alert::new_warning(&[""], width, height, &ui_style.alert);
         let button_width = Some(80);
         let title = Text::new(
             "Palette data?",
@@ -52,13 +50,13 @@ impl SavePaletteDataDialog {
             dialog_pos + (16, 25),
             "Don't include",
             button_width,
-            &style.button,
+            &ui_style.button,
         );
         let save_id = Button::new(
             dialog_pos + (16, 50),
             "Save as ID",
             button_width,
-            &style.button,
+            &ui_style.button,
         );
         let mut id = TextField::new(
             dialog_pos + (108, 53),
@@ -67,13 +65,13 @@ impl SavePaletteDataDialog {
             (None, None),
             "",
             &[TextFilter::Numbers],
-            &style.text_field,
+            &ui_style.text_field,
         );
         let save_name = Button::new(
             dialog_pos + (16, 75),
             "Save as name",
             button_width,
-            &style.button,
+            &ui_style.button,
         );
         let mut name = TextField::new(
             dialog_pos + (16, 96),
@@ -82,31 +80,27 @@ impl SavePaletteDataDialog {
             (None, None),
             "",
             &[TextFilter::All],
-            &style.text_field,
+            &ui_style.text_field,
         );
         let save_colors = Button::new(
             dialog_pos + (16, 112),
             "Include color list",
             button_width,
-            &style.button,
-        );
-        let default_checkbox = Rect::new_with_size(dialog_pos + (16, 132), 8, 8);
-        let default_text = Text::new(
-            "Use by default",
-            TextPos::px(dialog_pos + (27, 134)),
-            (WHITE, PixelFont::Standard4x5),
+            &ui_style.button,
         );
         let cancel = Button::new(
             dialog_pos + (55, 146),
             "Cancel",
             button_width,
-            &style.button,
+            &ui_style.button,
+        );
+        let default_checkbox = Checkbox::new(
+            dialog_pos + (16, 132),
+            "Use by default",
+            settings.data.use_colors,
+            &ui_style.checkbox,
         );
         let mut indicator = None;
-        let check =
-            IndexedImage::from_file_contents(include_bytes!("../../assets/icons/check.ici"))
-                .unwrap()
-                .0;
         match pal {
             None => {}
             Some(pal) => match pal {
@@ -154,24 +148,28 @@ impl SavePaletteDataDialog {
             alert,
             title,
             show_alert: false,
-            check,
             settings,
-            default_text,
         })
     }
 }
 
 impl Scene<SceneResult, SceneName> for SavePaletteDataDialog {
-    fn render(&self, graphics: &mut Graphics, mouse: &MouseData, _: &[KeyCode]) {
+    fn render(&self, graphics: &mut Graphics, mouse: &MouseData, _: &FxHashSet<KeyCode>) {
         self.background.render(graphics);
         self.title.render(graphics);
-        self.id.render(graphics, mouse);
-        self.name.render(graphics, mouse);
-        self.cancel.render(graphics, mouse);
-        self.save_id.render(graphics, mouse);
-        self.save_no_data.render(graphics, mouse);
-        self.save_name.render(graphics, mouse);
-        self.save_colors.render(graphics, mouse);
+
+        render!(
+            graphics,
+            mouse,
+            self.id,
+            self.name,
+            self.cancel,
+            self.save_id,
+            self.save_no_data,
+            self.save_name,
+            self.save_colors,
+            self.default_checkbox
+        );
 
         if let Some(indicator) = self.indicator {
             let triangle =
@@ -179,18 +177,12 @@ impl Scene<SceneResult, SceneName> for SavePaletteDataDialog {
             graphics.draw_triangle(triangle, fill(WHITE));
         }
 
-        self.default_text.render(graphics);
-        graphics.draw_rect(self.default_checkbox.clone(), fill(WHITE));
-        if self.settings.data.use_colors {
-            graphics.draw_indexed_image(self.default_checkbox.top_left() + (1, 1), &self.check);
-        }
-
         if self.show_alert {
             self.alert.render(graphics, mouse);
         }
     }
 
-    fn on_key_up(&mut self, key: KeyCode, _: &MouseData, held: &[KeyCode]) {
+    fn on_key_up(&mut self, key: KeyCode, _: &MouseData, held: &FxHashSet<KeyCode>) {
         self.id.on_key_press(key, held);
         self.name.on_key_press(key, held);
     }
@@ -200,7 +192,7 @@ impl Scene<SceneResult, SceneName> for SavePaletteDataDialog {
         down_at: Coord,
         mouse: &MouseData,
         button: MouseButton,
-        _: &[KeyCode],
+        _: &FxHashSet<KeyCode>,
     ) {
         if button != MouseButton::Left {
             return;
@@ -214,8 +206,8 @@ impl Scene<SceneResult, SceneName> for SavePaletteDataDialog {
         self.id.on_mouse_click(down_at, mouse.xy);
         self.name.on_mouse_click(down_at, mouse.xy);
 
-        if self.default_checkbox.contains(mouse.xy) {
-            self.settings.data.use_colors = !self.settings.data.use_colors;
+        if let Some(new_set) = self.default_checkbox.on_mouse_click(down_at, mouse.xy) {
+            self.settings.data.use_colors = new_set;
             self.settings.save();
         }
         if self.save_no_data.on_mouse_click(down_at, mouse.xy) {
@@ -254,7 +246,7 @@ impl Scene<SceneResult, SceneName> for SavePaletteDataDialog {
         }
     }
 
-    fn update(&mut self, timing: &Timing, _: &MouseData, _: &[KeyCode]) -> SUR {
+    fn update(&mut self, timing: &Timing, _: &MouseData, _: &FxHashSet<KeyCode>) -> SUR {
         self.id.update(timing);
         self.name.update(timing);
 

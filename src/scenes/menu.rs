@@ -1,68 +1,89 @@
-use crate::scenes::editor::EditorDetails;
-use crate::scenes::{file_dialog, BACKGROUND};
-use crate::SceneUpdateResult::{Nothing, Push};
-use crate::{DefaultPalette, Scene, SceneName, SceneResult, Settings, SUR};
-use color_eyre::Result;
 use pixels_graphics_lib::prelude::*;
+use pixels_graphics_lib::ui::prelude::relative::LayoutContext;
 use pixels_graphics_lib::ui::prelude::*;
+use pixels_graphics_lib::{layout, px, render};
 
-const LOGO_POS: Coord = Coord::new(10, 10);
-const NEW_POS: Coord = Coord::new(10, 50);
-const LOAD_POS: Coord = Coord::new(10, 70);
-const PALETTE_INFO_POS: TextPos = TextPos::Px(10, 100);
+use crate::scenes::editor::EditorDetails;
+use crate::scenes::{file_dialog, import_image, BACKGROUND};
+use crate::SceneUpdateResult::{Nothing, Push};
+use crate::{DefaultPalette, Scene, SceneName, SceneResult, Settings, HEIGHT, SUR, WIDTH};
+
+const PALETTE_INFO_POS: TextPos = TextPos::Px(10, 200);
 
 pub struct Menu {
     result: SUR,
-    logo: Image,
+    title: Label,
     new_button: Button,
     load_button: Button,
+    import_button: Button,
+    format_label: Label,
     default_palette: DefaultPalette,
     prefs: AppPrefs<Settings>,
-}
-
-fn make_image(width: usize, height: usize, method: fn(&mut Graphics)) -> Result<Image> {
-    let mut buffer = vec![0_u8; width * height * 4];
-    let mut graphics = Graphics::new(&mut buffer, width, height)?;
-    method(&mut graphics);
-    Ok(graphics.copy_to_image())
+    warning: Option<Alert>,
+    alert_style: AlertStyle,
 }
 
 impl Menu {
-    pub fn new(
-        prefs: AppPrefs<Settings>,
-        palette: DefaultPalette,
-        button_style: &ButtonStyle,
-    ) -> Box<Self> {
-        let logo = make_image(60, 40, |graphics| {
-            graphics.draw_text(
-                "ICI IMAGE EDITOR",
-                TextPos::Px(0, 0),
-                (
-                    WHITE,
-                    PixelFont::Standard8x10,
-                    WrappingStrategy::SpaceBeforeCol(7),
-                ),
-            );
-        })
-        .unwrap();
-        let new_button = Button::new(NEW_POS, "New image", Some(86), button_style);
-        let load_button = Button::new(LOAD_POS, "Load image", Some(86), button_style);
+    pub fn new(prefs: AppPrefs<Settings>, palette: DefaultPalette, style: &UiStyle) -> Box<Self> {
+        let mut title = Label::new(Text::new(
+            "ICI IMAGE EDITOR",
+            TextPos::Px(0, 0),
+            (
+                WHITE,
+                PixelFont::Standard8x10,
+                WrappingStrategy::SpaceBeforeCol(7),
+            ),
+        ));
+        let mut new_button = Button::new((0, 0), "New image", Some(86), &style.button);
+        let mut load_button = Button::new((0, 0), "Load ICI", Some(86), &style.button);
+        let mut import_button = Button::new((0, 0), "Import", Some(86), &style.button);
+        let mut format_label = Label::singleline("PNG, BMP, JPG & TGA", (0,0), WHITE, PixelFont::Limited3x5, WIDTH);
+
+        let context = LayoutContext::new(Rect::new_with_size((0, 0), WIDTH, HEIGHT));
+
+        layout!(context, title, align_top, px!(10));
+        layout!(context, title, align_left, px!(10));
+
+        layout!(context, new_button, left_to_left_of title);
+        layout!(context, new_button, top_to_bottom_of title, px!(30));
+
+        layout!(context, load_button, left_to_left_of title);
+        layout!(context, load_button, top_to_bottom_of new_button, px!(8));
+
+        layout!(context, import_button, left_to_left_of title);
+        layout!(context, import_button, top_to_bottom_of load_button, px!(8));
+
+        layout!(context, format_label, left_to_left_of import_button);
+        layout!(context, format_label, top_to_bottom_of import_button, px!(4));
+
         Box::new(Self {
             result: Nothing,
-            logo,
+            title,
             new_button,
             load_button,
+            import_button,
             prefs,
             default_palette: palette,
+            warning: None,
+            alert_style: style.alert.clone(),
+            format_label,
         })
     }
 }
 
 impl Scene<SceneResult, SceneName> for Menu {
-    fn render(&self, graphics: &mut Graphics, mouse: &MouseData, _: &[KeyCode]) {
+    fn render(&self, graphics: &mut Graphics, mouse: &MouseData, _: &FxHashSet<KeyCode>) {
         graphics.clear(BACKGROUND);
 
-        graphics.draw_image(LOGO_POS, &self.logo);
+        render!(
+            graphics,
+            mouse,
+            self.import_button,
+            self.new_button,
+            self.title,
+            self.load_button,
+            self.format_label
+        );
 
         match &self.default_palette {
             DefaultPalette::NoPalette => {}
@@ -85,25 +106,22 @@ impl Scene<SceneResult, SceneName> for Menu {
                 ),
             ),
         }
-
-        self.new_button.render(graphics, mouse);
-        self.load_button.render(graphics, mouse);
     }
 
-    fn on_key_up(&mut self, _: KeyCode, _: &MouseData, _: &[KeyCode]) {}
+    fn on_key_up(&mut self, _: KeyCode, _: &MouseData, _: &FxHashSet<KeyCode>) {}
 
     fn on_mouse_click(
         &mut self,
         down_at: Coord,
         mouse: &MouseData,
         button: MouseButton,
-        _: &[KeyCode],
+        _: &FxHashSet<KeyCode>,
     ) {
         if button != MouseButton::Left {
             return;
         }
         if self.new_button.on_mouse_click(down_at, mouse.xy) {
-            self.result = Push(false, SceneName::NewImage);
+            self.result = Push(false, SceneName::NewImage(None));
         }
         if self.load_button.on_mouse_click(down_at, mouse.xy) {
             if let Some(path) = file_dialog(
@@ -112,12 +130,22 @@ impl Scene<SceneResult, SceneName> for Menu {
             )
             .pick_file()
             {
-                self.result = Push(false, SceneName::Editor(EditorDetails::Open(path)));
+                self.result = Push(true, SceneName::Editor(EditorDetails::Open(path)));
+            }
+        }
+        if self.import_button.on_mouse_click(down_at, mouse.xy) {
+            if let Some(result) = import_image(&self.alert_style, &mut self.prefs) {
+                match result {
+                    Ok(img) => {
+                        self.result = Push(true, SceneName::Editor(EditorDetails::OpenImage(img)))
+                    }
+                    Err(alert) => self.warning = Some(alert),
+                }
             }
         }
     }
 
-    fn update(&mut self, _: &Timing, _: &MouseData, _: &[KeyCode]) -> SUR {
+    fn update(&mut self, _: &Timing, _: &MouseData, _: &FxHashSet<KeyCode>) -> SUR {
         self.result.clone()
     }
 

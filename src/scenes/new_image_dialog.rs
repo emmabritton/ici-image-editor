@@ -4,17 +4,22 @@ use crate::SceneUpdateResult::*;
 use crate::{Scene, SceneName, SceneResult, SUR};
 use pixels_graphics_lib::buffer_graphics_lib::prelude::*;
 use pixels_graphics_lib::prelude::*;
+use pixels_graphics_lib::ui::layout::relative::LayoutContext;
 use pixels_graphics_lib::ui::prelude::TextFilter::Numbers;
 use pixels_graphics_lib::ui::prelude::*;
+use pixels_graphics_lib::{layout, px, render};
 use std::str::FromStr;
 
 #[derive(Debug)]
 pub struct NewImageDialog {
     result: SUR,
     width_field: TextField,
-    width_label: Text,
+    width_label: Label,
     height_field: TextField,
-    height_label: Text,
+    height_label: Label,
+    x_label: Label,
+    size_label: Label,
+    palette_checkbox: Checkbox,
     submit_button: Button,
     cancel_button: Button,
     background: ShapeCollection,
@@ -28,40 +33,80 @@ pub struct NewImageDialog {
     quick_48: Button,
     quick_64: Button,
     quick_8_16: Button,
+    quick_16_32: Button,
     label: Text,
+    palette: Option<Vec<Color>>,
 }
 
 impl NewImageDialog {
-    pub fn new(width: usize, height: usize, style: &UiStyle) -> Box<Self> {
+    pub fn new(
+        width: usize,
+        height: usize,
+        palette: Option<Vec<Color>>,
+        style: &UiStyle,
+    ) -> Box<Self> {
         let background = dialog_background(width, height, &style.dialog);
-        let width_label = Text::new(
-            "Width (1..=64)",
-            TextPos::px(style.dialog.bounds.top_left() + (8, 8)),
+        let context = LayoutContext::new(style.dialog.bounds.clone());
+        let mut width_label = Label::new(Text::new(
+            "Width",
+            TextPos::Px(0, 0),
             (WHITE, PixelFont::Standard6x7),
-        );
+        ));
         let mut width_field = TextField::new(
-            style.dialog.bounds.top_left() + (8, 18),
-            6,
+            (0, 0),
+            2,
             PixelFont::Standard6x7,
             (None, None),
             "",
             &[Numbers],
             &style.text_field,
         );
-        let height_label = Text::new(
-            "Height (1..=64)",
-            TextPos::px(style.dialog.bounds.top_left() + (8, 40)),
+        let mut height_label = Label::new(Text::new(
+            "Height",
+            TextPos::Px(0, 0),
             (WHITE, PixelFont::Standard6x7),
-        );
-        let height_field = TextField::new(
-            style.dialog.bounds.top_left() + (8, 50),
-            6,
+        ));
+        let mut x_label = Label::new(Text::new(
+            "x",
+            TextPos::Px(0, 0),
+            (WHITE, PixelFont::Standard6x7),
+        ));
+        let mut height_field = TextField::new(
+            (0, 0),
+            2,
             PixelFont::Standard6x7,
             (None, None),
             "",
             &[Numbers],
             &style.text_field,
         );
+        let mut size_label =
+            Label::singleline("Between 0..=64", (0, 0), WHITE, PixelFont::Standard4x5, 100);
+        let mut palette_checkbox = Checkbox::new((0, 0), "Copy palette", false, &style.checkbox);
+
+        layout!(context, width_label, align_top, px!(8));
+        layout!(context, width_label, align_left, px!(8));
+
+        layout!(context, width_field, left_to_left_of width_label);
+        layout!(context, grow width_field, right_to_right_of width_label);
+        layout!(context, width_field, top_to_bottom_of  width_label);
+
+        layout!(context, x_label, left_to_right_of  width_field, px!(4));
+        layout!(context, x_label, bottom_to_bottom_of  width_field);
+
+        layout!(context, height_field, left_to_right_of  x_label, px!(4));
+        layout!(context, height_field, bottom_to_bottom_of  x_label);
+
+        layout!(context, height_label, left_to_left_of  height_field);
+        layout!(context, grow height_field, right_to_right_of height_label);
+        layout!(context, height_label, top_to_top_of  width_label );
+
+        layout!(context, size_label, bottom_to_bottom_of   height_field );
+        layout!(context, size_label, left_to_right_of   height_label, px!(6) );
+
+        layout!(context, palette_checkbox, left_to_left_of width_label);
+        layout!(context, palette_checkbox, top_to_bottom_of  width_field, px!(8));
+
         let submit_button = Button::new(
             style.dialog.bounds.top_left() + (138, 144),
             "Create",
@@ -74,9 +119,9 @@ impl NewImageDialog {
             None,
             &style.button,
         );
-        let row1_y = 80;
-        let row2_y = 100;
-        let row3_y = 120;
+        let row1_y = 70;
+        let row2_y = 90;
+        let row3_y = 110;
         let quick_8 = Button::new(
             style.dialog.bounds.top_left() + (8, row1_y),
             "8x8",
@@ -140,14 +185,25 @@ impl NewImageDialog {
             Some(50),
             &style.button,
         );
+        let quick_16_32 = Button::new(
+            (
+                quick_8_16.bounds().bottom_right().x + 8,
+                style.dialog.bounds.top_left().y + row3_y,
+            ),
+            "16x32",
+            Some(50),
+            &style.button,
+        );
         let label = Text::new(
             "Quick create",
-            TextPos::px(style.dialog.bounds.top_left() + (8, 68)),
+            TextPos::px(style.dialog.bounds.top_left() + (8, 60)),
             (WHITE, PixelFont::Standard6x7),
         );
         let alert = Alert::new_warning(&[""], width, height, &style.alert);
         width_field.focus();
         Box::new(Self {
+            x_label,
+            size_label,
             result: Nothing,
             width_field,
             width_label,
@@ -159,6 +215,7 @@ impl NewImageDialog {
             alert,
             alert_visible: false,
             quick_8,
+            palette,
             quick_12,
             quick_16,
             quick_24,
@@ -166,7 +223,9 @@ impl NewImageDialog {
             quick_48,
             quick_64,
             quick_8_16,
+            quick_16_32,
             label,
+            palette_checkbox,
         })
     }
 }
@@ -194,7 +253,12 @@ impl NewImageDialog {
     }
 
     fn set_success(&mut self, width: u8, height: u8) {
-        self.result = Push(true, Editor(EditorDetails::New(width, height)));
+        let palette = if self.palette_checkbox.is_checked() {
+            self.palette.clone()
+        } else {
+            None
+        };
+        self.result = Push(true, Editor(EditorDetails::New(width, height, palette)));
     }
 
     fn submit(&mut self) {
@@ -209,30 +273,41 @@ impl NewImageDialog {
 }
 
 impl Scene<SceneResult, SceneName> for NewImageDialog {
-    fn render(&self, graphics: &mut Graphics, mouse: &MouseData, _: &[KeyCode]) {
+    fn render(&self, graphics: &mut Graphics, mouse: &MouseData, _: &FxHashSet<KeyCode>) {
         graphics.draw(&self.background);
-        graphics.draw(&self.width_label);
-        graphics.draw(&self.height_label);
-        self.submit_button.render(graphics, mouse);
-        self.cancel_button.render(graphics, mouse);
         self.label.render(graphics);
-        self.quick_8.render(graphics, mouse);
-        self.quick_12.render(graphics, mouse);
-        self.quick_16.render(graphics, mouse);
-        self.quick_32.render(graphics, mouse);
-        self.quick_24.render(graphics, mouse);
-        self.quick_48.render(graphics, mouse);
-        self.quick_64.render(graphics, mouse);
-        self.quick_8_16.render(graphics, mouse);
-        self.width_field.render(graphics, mouse);
-        self.height_field.render(graphics, mouse);
+        render!(
+            graphics,
+            mouse,
+            self.submit_button,
+            self.cancel_button,
+            self.quick_8,
+            self.quick_12,
+            self.quick_16,
+            self.quick_32,
+            self.quick_24,
+            self.quick_48,
+            self.quick_64,
+            self.quick_8_16,
+            self.quick_16_32,
+            self.size_label,
+            self.x_label,
+            self.width_label,
+            self.height_label,
+            self.width_field,
+            self.height_field
+        );
+
+        if self.palette.is_some() {
+            self.palette_checkbox.render(graphics, mouse);
+        }
 
         if self.alert_visible {
             self.alert.render(graphics, mouse);
         }
     }
 
-    fn on_key_up(&mut self, key: KeyCode, _: &MouseData, held: &[KeyCode]) {
+    fn on_key_up(&mut self, key: KeyCode, _: &MouseData, held: &FxHashSet<KeyCode>) {
         if self.alert_visible {
             return;
         }
@@ -258,7 +333,7 @@ impl Scene<SceneResult, SceneName> for NewImageDialog {
         down_at: Coord,
         mouse: &MouseData,
         button: MouseButton,
-        _: &[KeyCode],
+        _: &FxHashSet<KeyCode>,
     ) {
         if button != MouseButton::Left {
             return;
@@ -269,6 +344,7 @@ impl Scene<SceneResult, SceneName> for NewImageDialog {
             }
             return;
         }
+        let _ = self.palette_checkbox.on_mouse_click(down_at, mouse.xy);
         self.width_field.on_mouse_click(down_at, mouse.xy);
         self.height_field.on_mouse_click(down_at, mouse.xy);
         if self.submit_button.on_mouse_click(down_at, mouse.xy) {
@@ -301,9 +377,12 @@ impl Scene<SceneResult, SceneName> for NewImageDialog {
         if self.quick_8_16.on_mouse_click(down_at, mouse.xy) {
             self.set_success(8, 16);
         }
+        if self.quick_16_32.on_mouse_click(down_at, mouse.xy) {
+            self.set_success(16, 32);
+        }
     }
 
-    fn update(&mut self, timing: &Timing, _: &MouseData, _: &[KeyCode]) -> SUR {
+    fn update(&mut self, timing: &Timing, _: &MouseData, _: &FxHashSet<KeyCode>) -> SUR {
         self.width_field.update(timing);
         self.height_field.update(timing);
         self.result.clone()

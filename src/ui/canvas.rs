@@ -9,6 +9,8 @@ pub enum Tool {
     Line,
     Rect,
     Fill,
+    Circle,
+    Ellipse
 }
 
 #[derive(Debug)]
@@ -23,21 +25,23 @@ pub struct Canvas {
     tool: Tool,
     first_click_at: Option<(u8, u8)>,
     state: ViewState,
+    shift_pressed: bool
 }
 
 impl Canvas {
-    pub fn new(xy: Coord, (width, height): (usize, usize)) -> Self {
+    pub fn new(xy: Coord, (width, height): (usize, usize), colors: (Color, Color)) -> Self {
         Self {
             bounds: Rect::new_with_size(xy, width, height),
             inner_bounds: Rect::new_with_size(xy, 0, 0),
             image: IndexedImage::new(1, 1, vec![TRANSPARENT], vec![0]).unwrap(),
             screen_px_per_image_px: 1,
-            trans_background_colors: (LIGHT_GRAY, DARK_GRAY),
+            trans_background_colors: colors,
             cursor_color: RED,
             selected_color_idx: 1,
             tool: Tool::Pencil,
             first_click_at: None,
             state: ViewState::Normal,
+            shift_pressed: false
         }
     }
 }
@@ -95,6 +99,8 @@ impl Canvas {
                     edit_history.add_rect(start, (x, y), self.selected_color_idx)
                 }
                 (Tool::Fill, Some(start)) => edit_history.add_fill(start, self.selected_color_idx),
+                (Tool::Ellipse, Some(start)) => edit_history.add_ellipse(start, (x,y), self.shift_pressed, self.selected_color_idx),
+                (Tool::Circle, Some(start)) => edit_history.add_circle(start, (x,y), self.shift_pressed, self.selected_color_idx),
                 _ => Ok(()),
             };
             if let Err(e) = result {
@@ -104,12 +110,6 @@ impl Canvas {
         self.first_click_at = None;
     }
 
-    #[allow(unused)] //will be one day
-    pub fn trans_background_colors(&self) -> (Color, Color) {
-        self.trans_background_colors
-    }
-
-    #[allow(unused)] //will be one day
     pub fn set_trans_background_colors(&mut self, trans_background_colors: (Color, Color)) {
         self.trans_background_colors = trans_background_colors;
     }
@@ -146,6 +146,10 @@ impl Canvas {
         self.cursor_color = cursor;
         self.selected_color_idx = selected;
     }
+
+    pub fn set_shift_pressed(&mut self, shift_pressed: bool) {
+        self.shift_pressed = shift_pressed;
+    }
 }
 
 impl Canvas {
@@ -159,6 +163,10 @@ impl Canvas {
     fn draw_cursor_on_image(&self, graphics: &mut Graphics, xy: (u8, u8)) {
         let top_left =
             (Coord::from(xy) * self.screen_px_per_image_px) + self.inner_bounds.top_left();
+        if !self.inner_bounds.contains(top_left) {
+            return;
+        }
+
         if self.cursor_color.is_transparent() {
             let mut color = BLACK;
             color.a = 125;
@@ -240,8 +248,8 @@ impl Canvas {
 
     fn temp_rect(&self, graphics: &mut Graphics, start: (u8, u8), mouse_xy: Coord) {
         let end = self.mouse_to_image(mouse_xy);
-        let top_left = ((start.0).min(end.0), (start.1).min(end.1));
-        let bottom_right = ((start.0).max(end.0), (start.1).max(end.1));
+        let top_left = (start.0.min(end.0), start.1.min(end.1));
+        let bottom_right = (start.0.max(end.0), start.1.max(end.1));
 
         for x in top_left.0..bottom_right.0 {
             self.draw_cursor_on_image(graphics, (x, top_left.1));
@@ -251,6 +259,29 @@ impl Canvas {
         for y in top_left.1..=bottom_right.1 {
             self.draw_cursor_on_image(graphics, (top_left.0, y));
             self.draw_cursor_on_image(graphics, (bottom_right.0, y));
+        }
+    }
+
+    fn temp_circle(&self, graphics: &mut Graphics, start: (u8, u8), mouse_xy: Coord, shift_pressed: bool) {
+        let circle = if shift_pressed {
+            Circle::new(start, coord!(start).distance(self.mouse_to_image(mouse_xy)))
+        } else {
+            Rect::new(coord!(start),self.mouse_to_image(mouse_xy)).as_inner_circle()
+        };
+        for px in circle.outline_pixels() {
+            self.draw_cursor_on_image(graphics, (px.x as u8, px.y as u8));
+        }
+    }
+
+    fn temp_ellipse(&self, graphics: &mut Graphics, start: (u8, u8), mouse_xy: Coord, shift_pressed: bool) {
+        let end = self.mouse_to_image(mouse_xy);
+        let ellipse = if shift_pressed {
+            Ellipse::new(start, start.0.abs_diff(end.0) as usize/2,start.1.abs_diff(end.1) as usize/2)
+        } else {
+            Rect::new(coord!(start),self.mouse_to_image(mouse_xy)).as_outer_ellipse()
+        };
+        for px in ellipse.outline_pixels() {
+            self.draw_cursor_on_image(graphics, (px.x as u8, px.y as u8));
         }
     }
 }
@@ -291,6 +322,8 @@ impl PixelView for Canvas {
             match (self.tool, self.first_click_at) {
                 (Tool::Line, Some(start)) => self.temp_line(graphics, start, mouse.xy),
                 (Tool::Rect, Some(start)) => self.temp_rect(graphics, start, mouse.xy),
+                (Tool::Circle, Some(start)) => self.temp_circle(graphics, start, mouse.xy, self.shift_pressed),
+                (Tool::Ellipse, Some(start)) => self.temp_ellipse(graphics, start, mouse.xy, self.shift_pressed),
                 _ => self.draw_mouse_highlight(graphics, mouse.xy),
             }
         }

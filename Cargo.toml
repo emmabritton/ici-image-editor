@@ -1,6 +1,6 @@
 [package]
 name = "image-editor"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2021"
 authors = ["Emma Britton <emmabritton@pm.me>"]
 description = "Simple image editor for ICI files"
@@ -16,12 +16,13 @@ lto = true
 codegen-units = 1
 
 [dependencies]
-pixels-graphics-lib = { version = "0.18.0", default-features = false, features = ["window_prefs", "scenes"] }
+pixels-graphics-lib = { path="../rust-graphics-lib", default-features = false, features = ["window_prefs", "scenes", "images"] }
 color-eyre = "0.6.2"
 log = "0.4.20"
 directories = "5.0.1"
 env_logger = "0.11.3"
 ron = "0.8.1"
-serde = { version = "1.0.194", features = ["derive"] }
+serde = { version = "1.0.198", features = ["derive"] }
 fnv = "1.0.3"
 rfd = "0.14.1"
+image_lib = {  package = "image", version = "0.25.1" }

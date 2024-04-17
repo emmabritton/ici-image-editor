@@ -1,5 +1,14 @@
 # Changelog
 
+### Version 0.7.0
+- Update deps
+- Add tools `trim`, `resize`, `double size`, `simplify palette`
+- Show image size on screen
+- Add option for new/open in editor
+- Add import/export from/to png, jpeg, tga and bmp
+- Remove 'are you sure' for clear as it can be undone
+- Fix occasionally crash when removing colors from palettes 
+
 ### Version 0.6.0
 - Update deps
 - Move most buttons to a menubar

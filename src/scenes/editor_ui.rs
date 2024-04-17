@@ -1,5 +1,6 @@
+use crate::scenes::editor::BackgroundColors;
 use crate::scenes::editor_ui::MenuId::*;
-use crate::{HEIGHT, WIDTH};
+use crate::{Settings, HEIGHT, WIDTH};
 use pixels_graphics_lib::prelude::*;
 use pixels_graphics_lib::ui::prelude::*;
 
@@ -34,30 +35,75 @@ pub enum MenuId {
     MenuImageShiftDown,
     MenuPaletteEdit,
     MenuPaletteMode,
+    MenuCanvas,
+    MenuCanvasResize,
+    MenuCanvasTrim,
+    MenuCanvasBackground,
+    MenuCanvasBackgroundGreyCheck,
+    MenuCanvasBackgroundPurpleCheck,
+    MenuCanvasBackgroundSolidLightGrey,
+    MenuCanvasBackgroundSolidDarkGrey,
+    MenuCanvasBackgroundSolidBlack,
+    MenuCanvasBackgroundSolidWhite,
+    MenuImageDoubleSize,
+    MenuFileExport,
+    MenuFileExportPng,
+    MenuFileExportJpeg,
+    MenuFileExportTga,
+    MenuFileExportBmp,
+    MenuFileExportIco,
+    MenuFileImport,
+    MenuPaletteSimplify,
 }
 
-pub(super) fn create_menubar(style: &UiStyle) -> MenuBar<MenuId> {
+pub(super) fn create_menubar(style: &UiStyle, settings: &AppPrefs<Settings>) -> MenuBar<MenuId> {
     MenuBar::new(
         &style.menu,
         Coord::default(),
         (WIDTH, HEIGHT),
         true,
         &[
-            MenuBarItem::new_menu(
+            MenuBarItem::new(
                 MenuFile,
                 "File",
-                &[
-                    (MenuFileNew, "New"),
-                    (MenuFileOpen, "Open"),
-                    (MenuFileSave, "Save"),
-                    (MenuFileSaveAs, "Save As"),
-                    (MenuFileQuit, "Quit"),
+                vec![
+                    MenuBarItem::new_button(MenuFileNew, "New"),
+                    MenuBarItem::new_button(MenuFileOpen, "Open"),
+                    MenuBarItem::new_button(MenuFileSave, "Save"),
+                    MenuBarItem::new_button(MenuFileSaveAs, "Save As"),
+                    MenuBarItem::new_button(MenuFileImport, "Import"),
+                    MenuBarItem::new_menu(
+                        MenuFileExport,
+                        "Export",
+                        &[
+                            (MenuFileExportPng, "PNG"),
+                            (MenuFileExportJpeg, "JPEG"),
+                            (MenuFileExportTga, "TGA"),
+                            (MenuFileExportBmp, "BMP"),
+                            (MenuFileExportIco, "Icon"),
+                        ],
+                    ),
+                    MenuBarItem::new_button(MenuFileQuit, "Quit"),
                 ],
             ),
             MenuBarItem::new_menu(
                 MenuEdit,
                 "Edit",
                 &[(MenuEditUndo, "Undo"), (MenuEditRedo, "Redo")],
+            ),
+            MenuBarItem::new(
+                MenuCanvas,
+                "Canvas",
+                vec![
+                    MenuBarItem::new_button(MenuCanvasResize, "Resize"),
+                    MenuBarItem::new_button(MenuCanvasTrim, "Trim"),
+                    MenuBarItem::new_options(
+                        MenuCanvasBackground,
+                        "Background",
+                        &BackgroundColors::menu_items(),
+                        settings.data.background_color.idx(),
+                    ),
+                ],
             ),
             MenuBarItem::new(
                 MenuImage,
@@ -93,15 +139,17 @@ pub(super) fn create_menubar(style: &UiStyle) -> MenuBar<MenuId> {
                             (MenuImageShiftRight, "Right"),
                         ],
                     ),
+                    MenuBarItem::new_button(MenuImageDoubleSize, "Double size"),
                     MenuBarItem::new_button(MenuImageClear, "Clear"),
                 ],
             ),
-            MenuBarItem::new(
+            MenuBarItem::new_menu(
                 MenuPalette,
                 "Palette",
-                vec![
-                    MenuBarItem::new_button(MenuPaletteEdit, "Edit"),
-                    MenuBarItem::new_button(MenuPaletteMode, "Set mode"),
+                &[
+                    (MenuPaletteEdit, "Edit"),
+                    (MenuPaletteMode, "Set mode"),
+                    (MenuPaletteSimplify, "Simplify"),
                 ],
             ),
         ],

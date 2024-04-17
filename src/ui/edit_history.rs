@@ -85,13 +85,6 @@ impl EditHistory {
         self.events.is_empty()
     }
 
-    pub fn is_frame_empty(&self) -> bool {
-        self.edited_images[self.active_frame]
-            .get_pixels()
-            .iter()
-            .all(|&n| n == 0)
-    }
-
     pub fn get_images(&self) -> Vec<IndexedImage> {
         self.edited_images.clone()
     }
@@ -104,7 +97,7 @@ impl EditHistory {
         self.edited_images.len()
     }
 
-    pub fn is_first_event_light_pixel(&self) -> bool {
+    pub fn is_first_event(&self) -> Option<Color> {
         if self.events.len() == 1 {
             if let EditEvent::PixelsChange {
                 pixel_idxs,
@@ -114,12 +107,12 @@ impl EditHistory {
                 let color = self.edited_images[self.active_frame]
                     .get_color(*color_idx)
                     .unwrap();
-                if pixel_idxs.len() == 1 && color.brightness() > 0.95 {
-                    return true;
+                if pixel_idxs.len() == 1 {
+                    return Some(color);
                 }
             }
         }
-        false
+        None
     }
 }
 
@@ -299,6 +292,60 @@ impl EditHistory {
             pixels.push(i);
         }
 
+        let event = EditEvent::PixelsChange {
+            pixel_idxs: pixels,
+            color_idx: color,
+        };
+        self.add_event(event)
+    }
+
+    pub fn add_circle(
+        &mut self,
+        start: (u8, u8),
+        end: (u8, u8),
+        shift_held: bool,
+        color: u8,
+    ) -> Result<(), IndexedImageError> {
+        let points = if shift_held {
+            Circle::new(start, coord!(start).distance(end)).outline_pixels()
+        } else{
+            Rect::new(start, end).as_inner_circle().outline_pixels()
+        };
+
+        let mut pixels = vec![];
+        for point in points {
+            if let Ok(i) = self.edited_images[self.active_frame]
+                .get_pixel_index(point.x as u8, point.y as u8) {
+                pixels.push(i);
+            }
+        }
+        let event = EditEvent::PixelsChange {
+            pixel_idxs: pixels,
+            color_idx: color,
+        };
+        self.add_event(event)
+    }
+
+    pub fn add_ellipse(
+        &mut self,
+        start: (u8, u8),
+        end: (u8, u8),
+        shift_held: bool,
+        color: u8,
+    ) -> Result<(), IndexedImageError> {
+        let points = if shift_held {
+            Ellipse::new(start, start.0.abs_diff(end.0) as usize/2, start.1.abs_diff(end.1) as usize/2).outline_pixels()
+        } else{
+            Rect::new(start, end).as_outer_ellipse().outline_pixels()
+        };
+
+        let mut pixels = vec![];
+        for point in points {
+            if let Ok(i) = self.edited_images[self.active_frame]
+                .get_pixel_index(point.x as u8, point.y as u8) {
+                pixels.push(i);
+            }
+        }
         let event = EditEvent::PixelsChange {
             pixel_idxs: pixels,
             color_idx: color,
@@ -494,7 +541,7 @@ impl EditHistory {
             }
             EditEvent::PaletteChange(colors) => {
                 for image in &mut self.edited_images {
-                    image.set_palette(colors)?;
+                    image.set_palette_replace_id(colors, 0)?;
                 }
             }
             EditEvent::FrameAdd { idx, content } => {
