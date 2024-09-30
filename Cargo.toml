@@ -1,6 +1,6 @@
 [package]
 name = "image-editor"
-version = "0.7.0"
+version = "0.7.1"
 edition = "2021"
 authors = ["Emma Britton <emmabritton@pm.me>"]
 description = "Simple image editor for ICI files"
