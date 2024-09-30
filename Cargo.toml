@@ -16,7 +16,7 @@ lto = true
 codegen-units = 1
 
 [dependencies]
-pixels-graphics-lib = { path="../rust-graphics-lib", default-features = false, features = ["window_prefs", "scenes", "images", "pixels"] }
+pixels-graphics-lib = { version = "0.20.0", default-features = false, features = ["window_prefs", "scenes", "images", "pixels"] }
 color-eyre = "0.6.2"
 log = "0.4.21"
 directories = "5.0.1"
