@@ -246,7 +246,7 @@ impl Scene<SceneResult, SceneName> for SavePaletteDataDialog {
         }
     }
 
-    fn update(&mut self, timing: &Timing, _: &MouseData, _: &FxHashSet<KeyCode>) -> SUR {
+    fn update(&mut self, timing: &Timing, _: &MouseData, _: &FxHashSet<KeyCode>, _: &Window) -> SUR {
         self.id.update(timing);
         self.name.update(timing);
 

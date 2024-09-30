@@ -54,6 +54,13 @@ pub enum MenuId {
     MenuFileExportIco,
     MenuFileImport,
     MenuPaletteSimplify,
+    MenuAnim,
+    MenuAnimMode,
+    MenuAnimModeOnce,
+    MenuAnimModeOnceReverse,
+    MenuAnimModeLoop,
+    MenuAnimModeLoopReverse,
+    MenuAnimModeLoopBoth,
 }
 
 pub(super) fn create_menubar(style: &UiStyle, settings: &AppPrefs<Settings>) -> MenuBar<MenuId> {
@@ -142,6 +149,22 @@ pub(super) fn create_menubar(style: &UiStyle, settings: &AppPrefs<Settings>) -> 
                     MenuBarItem::new_button(MenuImageDoubleSize, "Double size"),
                     MenuBarItem::new_button(MenuImageClear, "Clear"),
                 ],
+            ),
+            MenuBarItem::new(
+                MenuAnim,
+                "Anim",
+                vec![MenuBarItem::new_options(
+                    MenuAnimMode,
+                    "Mode",
+                    &[
+                        (MenuAnimModeLoop, "Loop"),
+                        (MenuAnimModeLoopReverse, "Loop Reversed"),
+                        (MenuAnimModeLoopBoth, "Loop both ways"),
+                        (MenuAnimModeOnce, "Once"),
+                        (MenuAnimModeOnceReverse, "Once reverse lorem ipsum offscreen test"),
+                    ],
+                    0,
+                )],
             ),
             MenuBarItem::new_menu(
                 MenuPalette,

@@ -1,5 +1,9 @@
 # Changelog
 
+### Version 0.7.1
+- Add menu for animation mode
+- Add import/export from/to apng and gif
+
 ### Version 0.7.0
 - Update deps
 - Add tools `trim`, `resize`, `double size`, `simplify palette`

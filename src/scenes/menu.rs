@@ -151,7 +151,7 @@ impl Scene<SceneResult, SceneName> for Menu {
         }
     }
 
-    fn update(&mut self, _: &Timing, _: &MouseData, _: &FxHashSet<KeyCode>) -> SUR {
+    fn update(&mut self, _: &Timing, _: &MouseData, _: &FxHashSet<KeyCode>, _: &Window) -> SUR {
         self.result.clone()
     }
 

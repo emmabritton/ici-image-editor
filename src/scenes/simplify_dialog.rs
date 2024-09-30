@@ -218,6 +218,7 @@ impl Scene<SceneResult, SceneName> for SimplifyDialog {
         timing: &Timing,
         _: &MouseData,
         _: &FxHashSet<KeyCode>,
+         _: &Window
     ) -> SceneUpdateResult<SceneResult, SceneName> {
         self.amount.update(timing);
         self.result.clone()

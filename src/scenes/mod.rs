@@ -67,8 +67,8 @@ pub fn import_image(
                         alert_style,
                     )))
                 } else {
-                    let mut buffer = Graphics::create_buffer(img.width(), img.height());
-                    let mut graphics = Graphics::new(&mut buffer, img.width(), img.height())
+                    let mut buffer = Graphics::create_buffer_u8(img.width(), img.height());
+                    let mut graphics = Graphics::new_u8_rgba(&mut buffer, img.width(), img.height())
                         .expect("creating graphics for imported image");
                     graphics.draw_image((0, 0), &img);
                     match graphics.copy_to_indexed_image(false) {

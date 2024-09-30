@@ -146,6 +146,7 @@ pub struct Editor {
     menubar: MenuBar<MenuId>,
     warning: Option<Alert>,
     alert_style: AlertStyle,
+    play_type: PlayType
 }
 
 #[derive(Debug, Serialize, Deserialize, Copy, Clone, Eq, PartialEq)]
@@ -322,6 +323,7 @@ impl Editor {
                 .0,
             &style.toggle_icon_button,
         );
+        let mut play_type = PlayType::Loops;
         let mut filename = Label::singleline(UNTITLED, (0, 0), WHITE, Standard6x7, WIDTH - 4);
         let mut error = None;
         let mut save_data;
@@ -335,6 +337,7 @@ impl Editor {
                     let (image, pal) = AnimatedIndexedImage::from_file_contents(&bytes)
                         .expect("Reading animated image data");
                     speed.set_content(&image.get_per_frame().to_string());
+                    play_type = image.play_type();
                     (image.as_images(), pal)
                 } else {
                     let (image, pal) =
@@ -468,6 +471,7 @@ impl Editor {
             save_data,
             error,
             timeline,
+            play_type,
             menubar,
             filename,
             result: Nothing,
@@ -741,7 +745,7 @@ impl Editor {
                 ));
                 return;
             }
-            let mut values: Vec<u8> = image.pixels().iter().flat_map(|c| c.as_array()).collect();
+            let mut values: Vec<u8> = image.pixels().iter().flat_map(|c| ColorConversion::<[u8;4]>::to_rgba(*c)).collect();
             if format == ImageFormat::Jpeg {
                 values = values
                     .chunks_exact(4)
@@ -827,6 +831,18 @@ impl Editor {
                     .set_checked(MenuId::MenuCanvasBackgroundSolidWhite, true);
                 self.preview.set_background(0);
             }
+        }
+    }
+
+    fn set_anim_mode(&mut self, play_type: PlayType) {
+        self.play_type = play_type;
+        self.menubar.uncheck_all_children(MenuId::MenuAnimMode);
+        match play_type {
+            PlayType::Once => self.menubar.set_checked(MenuId::MenuAnimModeOnce, true),
+            PlayType::OnceReversed => self.menubar.set_checked(MenuId::MenuAnimModeOnceReverse, true),
+            PlayType::Loops => self.menubar.set_checked(MenuId::MenuAnimModeLoop, true),
+            PlayType::LoopsReversed => self.menubar.set_checked(MenuId::MenuAnimModeLoopReverse, true),
+            PlayType::LoopsBoth => self.menubar.set_checked(MenuId::MenuAnimModeLoopBoth, true),
         }
     }
 }
@@ -1254,6 +1270,13 @@ impl Scene<SceneResult, SceneName> for Editor {
                     MenuId::MenuCanvasBackgroundSolidBlack => {
                         self.set_bg_color(BackgroundColors::SolidBlack)
                     }
+                    MenuId::MenuAnim => {}
+                    MenuId::MenuAnimMode => {}
+                    MenuId::MenuAnimModeOnce => self.set_anim_mode(PlayType::Once),
+                    MenuId::MenuAnimModeOnceReverse => self.set_anim_mode(PlayType::OnceReversed),
+                    MenuId::MenuAnimModeLoop => self.set_anim_mode(PlayType::Loops),
+                    MenuId::MenuAnimModeLoopReverse => self.set_anim_mode(PlayType::LoopsReversed),
+                    MenuId::MenuAnimModeLoopBoth => self.set_anim_mode(PlayType::LoopsBoth),
                 }
             }
             return;
@@ -1275,6 +1298,8 @@ impl Scene<SceneResult, SceneName> for Editor {
                 self.menubar.set_state(MenuId::MenuImage, ViewState::Normal);
                 self.menubar
                     .set_state(MenuId::MenuPalette, ViewState::Normal);
+                self.menubar
+                    .set_state(MenuId::MenuAnim, ViewState::Normal);
             } else {
                 self.is_playing = true;
                 self.anim_frame_idx = 0;
@@ -1292,6 +1317,8 @@ impl Scene<SceneResult, SceneName> for Editor {
                     .set_state(MenuId::MenuImage, ViewState::Disabled);
                 self.menubar
                     .set_state(MenuId::MenuPalette, ViewState::Disabled);
+                self.menubar
+                    .set_state(MenuId::MenuAnim, ViewState::Disabled);
             }
         }
         if self.add_frame.on_mouse_click(down_at, mouse.xy) {
@@ -1355,6 +1382,7 @@ impl Scene<SceneResult, SceneName> for Editor {
         timing: &Timing,
         mouse: &MouseData,
         held: &FxHashSet<KeyCode>,
+        _: &Window,
     ) -> SceneUpdateResult<SceneResult, SceneName> {
         self.speed.update(timing);
 
