@@ -1,5 +1,8 @@
 # Changelog
 
+### Version 0.7.2
+- Update deps
+
 ### Version 0.7.1
 - Add menu for animation mode
 
