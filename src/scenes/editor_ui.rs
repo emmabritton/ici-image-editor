@@ -161,7 +161,10 @@ pub(super) fn create_menubar(style: &UiStyle, settings: &AppPrefs<Settings>) -> 
                         (MenuAnimModeLoopReverse, "Loop Reversed"),
                         (MenuAnimModeLoopBoth, "Loop both ways"),
                         (MenuAnimModeOnce, "Once"),
-                        (MenuAnimModeOnceReverse, "Once reverse lorem ipsum offscreen test"),
+                        (
+                            MenuAnimModeOnceReverse,
+                            "Once reverse lorem ipsum offscreen test",
+                        ),
                     ],
                     0,
                 )],

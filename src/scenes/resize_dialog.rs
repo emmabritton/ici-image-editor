@@ -330,7 +330,7 @@ impl Scene<SceneResult, SceneName> for ResizeDialog {
         timing: &Timing,
         _: &MouseData,
         _: &FxHashSet<KeyCode>,
-        _: &Window
+        _: &Window,
     ) -> SceneUpdateResult<SceneResult, SceneName> {
         self.width.update(timing);
         self.height.update(timing);

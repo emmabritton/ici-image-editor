@@ -451,7 +451,13 @@ impl Scene<SceneResult, SceneName> for PaletteDialog {
         }
     }
 
-    fn update(&mut self, timing: &Timing, _: &MouseData, _: &FxHashSet<KeyCode>, _: &Window) -> SUR {
+    fn update(
+        &mut self,
+        timing: &Timing,
+        _: &MouseData,
+        _: &FxHashSet<KeyCode>,
+        _: &Window,
+    ) -> SUR {
         self.red.update(timing);
         self.green.update(timing);
         self.blue.update(timing);

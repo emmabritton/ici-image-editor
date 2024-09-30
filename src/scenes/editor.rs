@@ -146,7 +146,7 @@ pub struct Editor {
     menubar: MenuBar<MenuId>,
     warning: Option<Alert>,
     alert_style: AlertStyle,
-    play_type: PlayType
+    play_type: PlayType,
 }
 
 #[derive(Debug, Serialize, Deserialize, Copy, Clone, Eq, PartialEq)]
@@ -745,7 +745,11 @@ impl Editor {
                 ));
                 return;
             }
-            let mut values: Vec<u8> = image.pixels().iter().flat_map(|c| ColorConversion::<[u8;4]>::to_rgba(*c)).collect();
+            let mut values: Vec<u8> = image
+                .pixels()
+                .iter()
+                .flat_map(|c| ColorConversion::<[u8; 4]>::to_rgba(*c))
+                .collect();
             if format == ImageFormat::Jpeg {
                 values = values
                     .chunks_exact(4)
@@ -839,9 +843,13 @@ impl Editor {
         self.menubar.uncheck_all_children(MenuId::MenuAnimMode);
         match play_type {
             PlayType::Once => self.menubar.set_checked(MenuId::MenuAnimModeOnce, true),
-            PlayType::OnceReversed => self.menubar.set_checked(MenuId::MenuAnimModeOnceReverse, true),
+            PlayType::OnceReversed => self
+                .menubar
+                .set_checked(MenuId::MenuAnimModeOnceReverse, true),
             PlayType::Loops => self.menubar.set_checked(MenuId::MenuAnimModeLoop, true),
-            PlayType::LoopsReversed => self.menubar.set_checked(MenuId::MenuAnimModeLoopReverse, true),
+            PlayType::LoopsReversed => self
+                .menubar
+                .set_checked(MenuId::MenuAnimModeLoopReverse, true),
             PlayType::LoopsBoth => self.menubar.set_checked(MenuId::MenuAnimModeLoopBoth, true),
         }
     }
@@ -1298,8 +1306,7 @@ impl Scene<SceneResult, SceneName> for Editor {
                 self.menubar.set_state(MenuId::MenuImage, ViewState::Normal);
                 self.menubar
                     .set_state(MenuId::MenuPalette, ViewState::Normal);
-                self.menubar
-                    .set_state(MenuId::MenuAnim, ViewState::Normal);
+                self.menubar.set_state(MenuId::MenuAnim, ViewState::Normal);
             } else {
                 self.is_playing = true;
                 self.anim_frame_idx = 0;

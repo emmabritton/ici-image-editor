@@ -382,7 +382,13 @@ impl Scene<SceneResult, SceneName> for NewImageDialog {
         }
     }
 
-    fn update(&mut self, timing: &Timing, _: &MouseData, _: &FxHashSet<KeyCode>, _: &Window) -> SUR {
+    fn update(
+        &mut self,
+        timing: &Timing,
+        _: &MouseData,
+        _: &FxHashSet<KeyCode>,
+        _: &Window,
+    ) -> SUR {
         self.width_field.update(timing);
         self.height_field.update(timing);
         self.result.clone()

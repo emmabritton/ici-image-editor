@@ -134,8 +134,8 @@ impl Canvas {
     fn mouse_to_image(&self, mouse_xy: Coord) -> (u8, u8) {
         let offset_xy = mouse_xy - self.inner_bounds.top_left();
         let img_coord = offset_xy / self.screen_px_per_image_px;
-        let x = img_coord.x.min(255).max(0) as u8;
-        let y = img_coord.y.min(255).max(0) as u8;
+        let x = img_coord.x.clamp(0, 255) as u8;
+        let y = img_coord.y.clamp(0, 255) as u8;
         (x, y)
     }
 

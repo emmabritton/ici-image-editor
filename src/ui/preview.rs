@@ -40,9 +40,8 @@ impl Preview {
             .contains(xy)
         {
             let color_width = self.bounds.width() / COLORS.len();
-            self.background = (((xy - self.bounds.top_left()).x / color_width as isize) as usize)
-                .max(0)
-                .min(3);
+            self.background =
+                (((xy - self.bounds.top_left()).x / color_width as isize) as usize).clamp(0, 3);
         }
         COLORS[self.background]
     }
